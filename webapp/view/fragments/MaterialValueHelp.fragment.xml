@@ -1,0 +1,28 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core">
+    
+    <!-- 
+        growing="true" ensures automatic OData V4 Server-Side Pagination.
+        As the user scrolls the dialog, it fires subsequent $skip / $top requests.
+    -->
+    <SelectDialog
+        title="Select Material"
+        search=".onMaterialF4Search"
+        confirm=".onMaterialF4Confirm"
+        cancel=".onMaterialF4Confirm"
+        items="{
+            path: '/I_MaterialStdVH',
+            parameters: {
+                $select: 'Material,Material_Text'
+            }
+        }"
+        growing="true"
+        growingThreshold="20">
+        
+        <StandardListItem
+            title="{Material}"
+            description="{Material_Text}" />
+            
+    </SelectDialog>
+</core:FragmentDefinition>

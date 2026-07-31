@@ -1,0 +1,197 @@
+<mvc:View
+    controllerName="bulkreportinspection.controller.Bulk_Report_View"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:f="sap.f"
+    xmlns:fb="sap.ui.comp.filterbar"
+    xmlns:t="sap.ui.table"
+    xmlns:core="sap.ui.core"
+    xmlns:layout="sap.ui.layout"
+>
+    <f:DynamicPage
+        id="page"
+        headerExpanded="true"
+    >
+        <!-- Title -->
+        <f:title>
+            <f:DynamicPageTitle>
+                <f:heading>
+                    <Title text="Bulk Reporting Of Inspection Results" />
+                </f:heading>
+            </f:DynamicPageTitle>
+        </f:title>
+
+        <!-- Filter Bar -->
+        <f:header>
+            <f:DynamicPageHeader>
+                <fb:FilterBar
+                    id="filterBar"
+                    search=".onSearch"
+                    useToolbar="false"
+                    showFilterConfiguration="false"
+                >
+                    <fb:filterGroupItems>
+                        <!-- Plant Filter (Mandatory, Default 1200) -->
+                        <fb:FilterGroupItem
+                            groupName="Standard"
+                            name="Plant"
+                            label="Plant"
+                            visibleInFilterBar="true"
+                            mandatory="true"
+                        >
+                            <fb:control>
+                                <Input
+                                    id="inputPlant"
+                                    value="1200"
+                                    showClearIcon="true"
+                                />
+                            </fb:control>
+                        </fb:FilterGroupItem>
+
+                        <!-- Material Filter (Mandatory, with F4) -->
+                        <fb:FilterGroupItem
+                            groupName="Standard"
+                            name="Material"
+                            label="Material"
+                            visibleInFilterBar="true"
+                            mandatory="true"
+                        >
+                            <fb:control>
+                                <Input
+                                    id="inputMaterial"
+                                    showValueHelp="true"
+                                    valueHelpRequest=".onMaterialValueHelp"
+                                    placeholder="Select Material"
+                                    showClearIcon="true"
+                                />
+                            </fb:control>
+                        </fb:FilterGroupItem>
+
+                        <!-- NEW: Date Range Filter (Non-Mandatory) -->
+                        <fb:FilterGroupItem
+                            groupName="Standard"
+                            name="CreatedOn"
+                            label="Created On"
+                            visibleInFilterBar="true"
+                            mandatory="false"
+                        >
+                            <fb:control>
+                                <DateRangeSelection
+                                    id="inputDateRange"
+                                    displayFormat="dd/MM/yyyy"
+                                    placeholder="DD/MM/YYYY - DD/MM/YYYY"
+                                />
+                            </fb:control>
+                        </fb:FilterGroupItem>
+                    </fb:filterGroupItems>
+                </fb:FilterBar>
+            </f:DynamicPageHeader>
+        </f:header>
+
+        <!-- Grid Table -->
+        <f:content>
+            <t:Table
+                id="inspectionTable"
+                rows="{localModel>/results}"
+                selectionMode="MultiToggle"
+                visibleRowCountMode="Auto"
+                class="sapUiSizeCompact"
+            >
+                <t:extension>
+                    <OverflowToolbar>
+                        <ToolbarSpacer />
+                        <!-- Reserved for Future Post Call -->
+                        <!-- <Button text="Post Data" type="Emphasized" icon="sap-icon://save" press=".onPostData" enabled="false"/> -->
+                    </OverflowToolbar>
+                </t:extension>
+
+                <t:columns>
+                    <!-- Static Columns exactly matching image_69b1f8.png -->
+                    <!-- Note: Empty top labels align these 1-tier static headers with the 2-tier dynamic headers -->
+
+                    <t:Column width="170px">
+                        <t:multiLabels>
+                            <Label text="" />
+                            <Label
+                                text="Material Code"
+                                design="Bold"
+                            />
+                        </t:multiLabels>
+                        <t:template>
+                            <Text text="{localModel>Material}" />
+                        </t:template>
+                    </t:Column>
+
+                    <t:Column width="170px">
+                        <t:multiLabels>
+                            <Label text="" />
+                            <Label
+                                text="Lot No"
+                                design="Bold"
+                            />
+                        </t:multiLabels>
+                        <t:template>
+                            <Text text="{localModel>InspectionLot}" />
+                        </t:template>
+                    </t:Column>
+
+                    <t:Column width="80px">
+                        <t:multiLabels>
+                            <Label text="" />
+                            <Label
+                                text="Plant"
+                                design="Bold"
+                            />
+                        </t:multiLabels>
+                        <t:template>
+                            <Text text="{localModel>Plant}" />
+                        </t:template>
+                    </t:Column>
+
+                    <t:Column width="80px">
+                        <t:multiLabels>
+                            <Label text="" />
+                            <Label
+                                text="Lot Qty"
+                                design="Bold"
+                            />
+                        </t:multiLabels>
+                        <t:template>
+                            <Text text="{localModel>InspectionLotQuantity}" />
+                        </t:template>
+                    </t:Column>
+
+                    <t:Column width="80px">
+                        <t:multiLabels>
+                            <Label text="" />
+                            <Label
+                                text="UoM"
+                                design="Bold"
+                            />
+                        </t:multiLabels>
+                        <t:template>
+                            <Text
+                                text="{localModel>InspectionLotQuantityUnit}"
+                            />
+                        </t:template>
+                    </t:Column>
+
+                    <t:Column width="120px">
+                        <t:multiLabels>
+                            <Label text="" />
+                            <Label
+                                text="Serial Number"
+                                design="Bold"
+                            />
+                        </t:multiLabels>
+                        <t:template>
+                            <Text text="{localModel>SerialNumber}" />
+                        </t:template>
+                    </t:Column>
+
+                    <!-- Dynamic Columns will be injected here via Controller -->
+                </t:columns>
+            </t:Table>
+        </f:content>
+    </f:DynamicPage>
+</mvc:View>

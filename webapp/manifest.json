@@ -1,0 +1,118 @@
+{
+  "_version": "1.80.0",
+  "sap.app": {
+    "id": "bulkreportinspection",
+    "type": "application",
+    "i18n": "i18n/i18n.properties",
+    "applicationVersion": {
+      "version": "0.0.1"
+    },
+    "title": "{{appTitle}}",
+    "description": "{{appDescription}}",
+    "resources": "resources.json",
+    "sourceTemplate": {
+      "id": "@sap/generator-fiori:basic",
+      "version": "1.29.0",
+      "toolsId": "b0cbc3d6-2c9a-42cb-91d6-03df5bd148bc"
+    },
+    "dataSources": {
+      "mainService": {
+        "uri": "/sap/opu/odata4/sap/zsb_insp_lot_bulk_result/srvd/sap/zui_insp_lot_bulk_result/0001/",
+        "type": "OData",
+        "settings": {
+          "annotations": [],
+          "localUri": "localService/mainService/metadata.xml",
+          "odataVersion": "4.0"
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "icons": {
+      "icon": "",
+      "favIcon": "",
+      "phone": "",
+      "phone@2": "",
+      "tablet": "",
+      "tablet@2": ""
+    },
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "flexEnabled": false,
+    "dependencies": {
+      "minUI5Version": "1.142.12",
+      "libs": {
+        "sap.m": {},
+        "sap.ui.core": {}
+      }
+    },
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    },
+    "models": {
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": {
+          "bundleName": "bulkreportinspection.i18n.i18n"
+        }
+      },
+      "": {
+        "dataSource": "mainService",
+        "preload": true,
+        "settings": {
+          "operationMode": "Server",
+          "autoExpandSelect": true,
+          "earlyRequests": true
+        }
+      }
+    },
+    "resources": {
+      "css": [
+        {
+          "uri": "css/style.css"
+        }
+      ]
+    },
+    "routing": {
+      "config": {
+        "routerClass": "sap.m.routing.Router",
+        "controlAggregation": "pages",
+        "controlId": "app",
+        "transition": "slide",
+        "type": "View",
+        "viewType": "XML",
+        "path": "bulkreportinspection.view",
+        "async": true,
+        "viewPath": "bulkreportinspection.view"
+      },
+      "routes": [
+        {
+          "name": "RouteBulk_Report_View",
+          "pattern": ":?query:",
+          "target": [
+            "TargetBulk_Report_View"
+          ]
+        }
+      ],
+      "targets": {
+        "TargetBulk_Report_View": {
+          "id": "Bulk_Report_View",
+          "name": "Bulk_Report_View"
+        }
+      }
+    },
+    "rootView": {
+      "viewName": "bulkreportinspection.view.App",
+      "type": "XML",
+      "id": "App",
+      "async": true
+    }
+  }
+}
