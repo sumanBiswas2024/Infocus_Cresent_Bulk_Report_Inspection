@@ -10,7 +10,7 @@ sap.ui.define([
     "sap/m/Text",
     "sap/m/Input",
     "sap/ui/core/Fragment",
-    "sap/ui/core/format/DateFormat" // <--- 1. Add DateFormat Import
+    "sap/ui/core/format/DateFormat" 
 ], (Controller, JSONModel, Filter, FilterOperator, MessageToast, MessageBox, Column, Label, Text, Input, Fragment, DateFormat) => {
     "use strict";
 
@@ -23,7 +23,6 @@ sap.ui.define([
             this._bHasMoreData = true;
             this._bIsFetching = false;
 
-            // 2. Variable to hold active filters for pagination
             this._aCurrentFilters = [];
 
             const oLocalModel = new JSONModel({ results: [] });
@@ -43,24 +42,21 @@ sap.ui.define([
                 return;
             }
 
-            // 3. Build the Filter Array dynamically
             this._aCurrentFilters = [
                 new Filter("Material", FilterOperator.EQ, sMaterial),
                 new Filter("Plant", FilterOperator.EQ, sPlant)
             ];
 
-            // 4. Extract Date Range
             const oDateRange = oView.byId("inputDateRange");
             const oStartDate = oDateRange.getDateValue();
             const oEndDate = oDateRange.getSecondDateValue();
 
             if (oStartDate && oEndDate) {
-                // OData V4 Edm.Date requires the format 'yyyy-MM-dd'
                 const oFormat = DateFormat.getDateInstance({ pattern: "yyyy-MM-dd" });
 
                 this._aCurrentFilters.push(new Filter({
                     path: "InspectionLotCreatedOn",
-                    operator: FilterOperator.BT, // Between operator
+                    operator: FilterOperator.BT, 
                     value1: oFormat.format(oStartDate),
                     value2: oFormat.format(oEndDate)
                 }));
@@ -71,7 +67,6 @@ sap.ui.define([
             this.getView().getModel("localModel").setProperty("/results", []);
             this._removeDynamicColumns();
 
-            // Pass the filter array to the fetch function
             this._fetchData();
         },
 
@@ -84,7 +79,6 @@ sap.ui.define([
 
             const oModel = this.getOwnerComponent().getModel();
 
-            // 5. Use the globally stored filters array
             const oListBinding = oModel.bindList(
                 "/InspectionLotSerialResult",
                 null,
@@ -111,7 +105,13 @@ sap.ui.define([
 
                 this._iCurrentSkip += this._iPageSize;
 
-                const aNewData = aContexts.map(oContext => oContext.getObject());
+                // ADDED: Map through the data and inject _Selected property for the mandatory asterisk
+                const aNewData = aContexts.map(oContext => {
+                    const oRow = oContext.getObject();
+                    oRow._Selected = false; 
+                    return oRow;
+                });
+
                 const oLocalModel = this.getView().getModel("localModel");
                 const aCurrentData = oLocalModel.getProperty("/results");
 
@@ -139,7 +139,6 @@ sap.ui.define([
             const iTotalRows = this.getView().getModel("localModel").getProperty("/results").length;
 
             if (iFirstVisible + iVisibleRowCount >= iTotalRows - 10) {
-                // 6. Pagination now automatically uses the filters stored during onSearch
                 this._fetchData();
             }
         },
@@ -149,8 +148,26 @@ sap.ui.define([
             const aSelectedIndices = oTable.getSelectedIndices();
             const oPostButton = this.byId("btnPostData");
             
-            // If length is greater than 0, setEnabled is true. Otherwise, false.
+            // 1. Enable/Disable Post Button
             oPostButton.setEnabled(aSelectedIndices.length > 0);
+
+            // 2. ADDED: Toggle the _Selected property to show/hide the red asterisks
+            const oLocalModel = this.getView().getModel("localModel");
+            const aResults = oLocalModel.getProperty("/results");
+
+            if (aResults) {
+                // Reset all rows to false
+                aResults.forEach(oRow => oRow._Selected = false);
+
+                // Set selected rows to true
+                aSelectedIndices.forEach(iIndex => {
+                    const oContext = oTable.getContextByIndex(iIndex);
+                    if (oContext) {
+                        const sPath = oContext.getPath(); 
+                        oLocalModel.setProperty(sPath + "/_Selected", true);
+                    }
+                });
+            }
         },
 
         _removeDynamicColumns() {
@@ -172,9 +189,8 @@ sap.ui.define([
                 // Sub-Column 1: Target Value
                 const oTargetCol = new Column({
                     width: "140px",
-                    headerSpan: [2, 1], // Merges the top header across 2 columns
+                    headerSpan: [2, 1], 
                     multiLabels: [
-                        // Added width: "100%" to force the label to center across the span
                         new Label({ text: sSpecText, textAlign: "Center", width: "100%" ,design: "Bold"}),
                         new Label({ text: "Target Value", textAlign: "Center", width: "100%", design: "Bold" })
                     ],
@@ -188,17 +204,18 @@ sap.ui.define([
                 const oReportedCol = new Column({
                     width: "140px",
                     multiLabels: [
-                        // Added width: "100%" here as well
                         new Label({ text: sSpecText, textAlign: "Center", width: "100%" , design: "Bold"}), 
                         new Label({ text: "Value Reported", textAlign: "Center", width: "100%", design: "Bold" })
                     ],
                     template: new Input({
-                        value: "{localModel>_CharResult/" + iIndex + "/ReportedValue}"
+                        value: "{localModel>_CharResult/" + iIndex + "/ReportedValue}",
+                        required: "{localModel>_Selected}" // ADDED: Binds the red asterisk to the selection state
                     })
                 });
                 oTable.addColumn(oReportedCol);
             });
         },
+
         // ==========================================
         // Value Help (F4) Logic
         // ==========================================
@@ -223,7 +240,6 @@ sap.ui.define([
 
         onMaterialF4Search(oEvent) {
             const sValue = oEvent.getParameter("value");
-            // Standard OData filter mapping for the search bar inside F4
             const oFilter = new Filter("Material", FilterOperator.Contains, sValue);
             const oBinding = oEvent.getSource().getBinding("items");
             oBinding.filter([oFilter]);
@@ -235,15 +251,18 @@ sap.ui.define([
                 const sMaterial = oSelectedItem.getTitle();
                 this.byId("inputMaterial").setValue(sMaterial);
             }
-            // Reset filter for next time dialog is opened
             const oBinding = oEvent.getSource().getBinding("items");
             oBinding.filter([]); 
         },
+
+        // ==========================================
+        // Post Data Logic
+        // ==========================================
+
         onPostData() {
             const oTable = this.byId("inspectionTable");
             const aSelectedIndices = oTable.getSelectedIndices();
 
-            // 1. Ensure the user selected at least one row
             if (aSelectedIndices.length === 0) {
                 sap.m.MessageBox.warning("Please select at least one row to post.");
                 return;
@@ -255,10 +274,8 @@ sap.ui.define([
             let bValidationError = false;
             let sErrorMessage = "";
 
-            // Regex for integers, floats, and decimals (with optional negative sign)
             const rNumericRegex = /^-?\d+(\.\d+)?$/;
 
-            // 2. Loop through selected rows for Validation and Data Extraction
             for (let i = 0; i < aSelectedIndices.length; i++) {
                 const iIndex = aSelectedIndices[i];
                 const oContext = oTable.getContextByIndex(iIndex);
@@ -266,23 +283,27 @@ sap.ui.define([
                 
                 const aProcessedChars = [];
 
-                // Loop through the dynamic characteristics of this specific row
                 for (let j = 0; j < oRowData._CharResult.length; j++) {
                     const oChar = oRowData._CharResult[j];
                     
-                    // Safely grab the user's input, trimming accidental spaces
                     const sReportedValue = oChar.ReportedValue ? oChar.ReportedValue.trim() : "";
 
-                    // VALIDATION: Skip "PASSFAIL" target values from numeric validation
-                    if (sReportedValue !== "") {
+                    // ADDED: 1. Strict Empty Check (Mandatory Validation)
+                    if (sReportedValue === "") {
+                        bValidationError = true;
+                        // sErrorMessage = `Mandatory Field Missing: Please enter a value for "${oChar.InspectionSpecificationText}" on Serial Number ${oRowData.SerialNumber}.`;
+                        sErrorMessage = "Please enter a value for all fields in the selected row(s).";
+                        break; 
+                    }
+
+                    // ADDED: 2. Numeric Validation 
                         if (!rNumericRegex.test(sReportedValue)) {
                             bValidationError = true;
                             sErrorMessage = `Invalid input "${sReportedValue}" for characteristic "${oChar.InspectionSpecificationText}" on Serial Number ${oRowData.SerialNumber}. Only numeric values are allowed.`;
                             break; 
                         }
-                    }
+                    
 
-                    // Map the item level EXACTLY as the backend sends it, plus ReportedValue
                     aProcessedChars.push({
                         InspectionLot: oChar.InspectionLot,
                         SerialNumber: oChar.SerialNumber,
@@ -297,7 +318,6 @@ sap.ui.define([
                     break; 
                 }
 
-                // Map the header level EXACTLY as the backend sends it
                 aPayload.push({
                     InspectionLot: oRowData.InspectionLot,
                     SerialNumber: oRowData.SerialNumber,
@@ -310,15 +330,11 @@ sap.ui.define([
                 });
             }
 
-            // 3. Halt the post and show the error if validation failed
             if (bValidationError) {
                 sap.m.MessageBox.error(sErrorMessage);
                 return;
             }
 
-            // ========================================================================
-            // 4. Show the successfully validated Payload in a Pop-up Dialog
-            // ========================================================================
             const sJsonString = JSON.stringify(aPayload, null, 2);
             console.log("Payload prepared for backend:", sJsonString);
 
@@ -328,7 +344,6 @@ sap.ui.define([
                     contentWidth: "600px",
                     contentHeight: "400px",
                     content: new sap.m.TextArea({
-                        // REMOVED 'value' property from here to prevent binding parser crash
                         editable: false,
                         width: "100%",
                         rows: 20
@@ -343,12 +358,8 @@ sap.ui.define([
                 this.getView().addDependent(this._oPayloadDialog);
             } 
             
-            // Set the value OUTSIDE the constructor so it works flawlessly on the 1st click and beyond
             this._oPayloadDialog.getContent()[0].setValue(sJsonString);
-            
             this._oPayloadDialog.open();
-            
-            
         }
     });
 });
