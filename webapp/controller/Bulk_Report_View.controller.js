@@ -144,6 +144,15 @@ sap.ui.define([
             }
         },
 
+        onRowSelectionChange(oEvent) {
+            const oTable = oEvent.getSource();
+            const aSelectedIndices = oTable.getSelectedIndices();
+            const oPostButton = this.byId("btnPostData");
+            
+            // If length is greater than 0, setEnabled is true. Otherwise, false.
+            oPostButton.setEnabled(aSelectedIndices.length > 0);
+        },
+
         _removeDynamicColumns() {
             const oTable = this.byId("inspectionTable");
             let aColumns = oTable.getColumns();
@@ -166,7 +175,7 @@ sap.ui.define([
                     headerSpan: [2, 1], // Merges the top header across 2 columns
                     multiLabels: [
                         // Added width: "100%" to force the label to center across the span
-                        new Label({ text: sSpecText, textAlign: "Center", width: "100%" }),
+                        new Label({ text: sSpecText, textAlign: "Center", width: "100%" ,design: "Bold"}),
                         new Label({ text: "Target Value", textAlign: "Center", width: "100%", design: "Bold" })
                     ],
                     template: new Text({
@@ -180,7 +189,7 @@ sap.ui.define([
                     width: "140px",
                     multiLabels: [
                         // Added width: "100%" here as well
-                        new Label({ text: sSpecText, textAlign: "Center", width: "100%" }), 
+                        new Label({ text: sSpecText, textAlign: "Center", width: "100%" , design: "Bold"}), 
                         new Label({ text: "Value Reported", textAlign: "Center", width: "100%", design: "Bold" })
                     ],
                     template: new Input({
@@ -265,7 +274,7 @@ sap.ui.define([
                     const sReportedValue = oChar.ReportedValue ? oChar.ReportedValue.trim() : "";
 
                     // VALIDATION: Skip "PASSFAIL" target values from numeric validation
-                    if (sReportedValue !== "" && oChar.TargetValue !== "PASSFAIL") {
+                    if (sReportedValue !== "") {
                         if (!rNumericRegex.test(sReportedValue)) {
                             bValidationError = true;
                             sErrorMessage = `Invalid input "${sReportedValue}" for characteristic "${oChar.InspectionSpecificationText}" on Serial Number ${oRowData.SerialNumber}. Only numeric values are allowed.`;
@@ -319,7 +328,7 @@ sap.ui.define([
                     contentWidth: "600px",
                     contentHeight: "400px",
                     content: new sap.m.TextArea({
-                        value: sJsonString,
+                        // REMOVED 'value' property from here to prevent binding parser crash
                         editable: false,
                         width: "100%",
                         rows: 20
@@ -332,31 +341,14 @@ sap.ui.define([
                     })
                 });
                 this.getView().addDependent(this._oPayloadDialog);
-            } else {
-                this._oPayloadDialog.getContent()[0].setValue(sJsonString);
-            }
+            } 
+            
+            // Set the value OUTSIDE the constructor so it works flawlessly on the 1st click and beyond
+            this._oPayloadDialog.getContent()[0].setValue(sJsonString);
+            
             this._oPayloadDialog.open();
-
-            // ========================================================================
-            // 5. Backend Call
-            // ========================================================================
-            /*
-            oTable.setBusy(true);
-            const oModel = this.getOwnerComponent().getModel();
             
-            const oAction = oModel.bindContext("/PostBulkResults(...)"); 
-            oAction.setParameter("ResultData", aPayload);
             
-            oAction.execute().then(() => {
-                sap.m.MessageToast.show("Results posted successfully!");
-                oTable.clearSelection(); 
-                this.onSearch(); // Refresh the table automatically
-            }).catch((oError) => {
-                sap.m.MessageBox.error("Failed to post results to the backend.");
-            }).finally(() => {
-                oTable.setBusy(false);
-            });
-            */
         }
     });
 });

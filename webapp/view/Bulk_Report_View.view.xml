@@ -96,12 +96,20 @@
                 selectionMode="MultiToggle"
                 visibleRowCountMode="Auto"
                 class="sapUiSizeCompact"
+                rowSelectionChange=".onRowSelectionChange"
             >
                 <t:extension>
                     <OverflowToolbar>
                         <ToolbarSpacer />
                         <!-- Reserved for Future Post Call -->
-                        <Button text="Post Data" type="Emphasized" icon="sap-icon://save" press=".onPostData" enabled="true"/>
+                        <Button
+                            id="btnPostData"
+                            text="Post Data"
+                            type="Emphasized"
+                            icon="sap-icon://save"
+                            press=".onPostData"
+                            enabled="false"
+                        />
                     </OverflowToolbar>
                 </t:extension>
 
