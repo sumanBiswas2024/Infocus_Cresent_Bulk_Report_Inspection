@@ -25,6 +25,19 @@
           "odataVersion": "4.0"
         }
       }
+    },
+    "crossNavigation": {
+      "inbounds": {
+        "ZSO_BULK_REPT-Display": {
+          "semanticObject": "ZSO_BULK_REPT",
+          "action": "Display",
+          "title": "{{ZSO_BULK_REPT-Display.flpTitle}}",
+          "signature": {
+            "parameters": {},
+            "additionalParameters": "allowed"
+          }
+        }
+      }
     }
   },
   "sap.ui": {

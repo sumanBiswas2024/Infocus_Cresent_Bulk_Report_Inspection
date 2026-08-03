@@ -11,6 +11,8 @@
         search=".onMaterialF4Search"
         confirm=".onMaterialF4Confirm"
         cancel=".onMaterialF4Confirm"
+        draggable="true"
+        resizable="true"
         items="{
             path: '/I_MaterialStdVH',
             parameters: {

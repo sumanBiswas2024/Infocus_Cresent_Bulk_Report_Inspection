@@ -101,7 +101,7 @@
                     <OverflowToolbar>
                         <ToolbarSpacer />
                         <!-- Reserved for Future Post Call -->
-                        <!-- <Button text="Post Data" type="Emphasized" icon="sap-icon://save" press=".onPostData" enabled="false"/> -->
+                        <Button text="Post Data" type="Emphasized" icon="sap-icon://save" press=".onPostData" enabled="true"/>
                     </OverflowToolbar>
                 </t:extension>
 
@@ -126,7 +126,7 @@
                         <t:multiLabels>
                             <Label text="" />
                             <Label
-                                text="Lot No"
+                                text="Inspection Lot No"
                                 design="Bold"
                             />
                         </t:multiLabels>

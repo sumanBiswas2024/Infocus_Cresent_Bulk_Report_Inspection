@@ -163,9 +163,11 @@ sap.ui.define([
                 // Sub-Column 1: Target Value
                 const oTargetCol = new Column({
                     width: "140px",
+                    headerSpan: [2, 1], // Merges the top header across 2 columns
                     multiLabels: [
-                        new Label({ text: sSpecText, textAlign: "Center" }),
-                        new Label({ text: "Target Value", textAlign: "Center", design: "Bold" })
+                        // Added width: "100%" to force the label to center across the span
+                        new Label({ text: sSpecText, textAlign: "Center", width: "100%" }),
+                        new Label({ text: "Target Value", textAlign: "Center", width: "100%", design: "Bold" })
                     ],
                     template: new Text({
                         text: "{localModel>_CharResult/" + iIndex + "/TargetValue}"
@@ -177,8 +179,9 @@ sap.ui.define([
                 const oReportedCol = new Column({
                     width: "140px",
                     multiLabels: [
-                        new Label({ text: sSpecText, textAlign: "Center" }),
-                        new Label({ text: "Value Reported", textAlign: "Center", design: "Bold" })
+                        // Added width: "100%" here as well
+                        new Label({ text: sSpecText, textAlign: "Center", width: "100%" }), 
+                        new Label({ text: "Value Reported", textAlign: "Center", width: "100%", design: "Bold" })
                     ],
                     template: new Input({
                         value: "{localModel>_CharResult/" + iIndex + "/ReportedValue}"
@@ -187,7 +190,6 @@ sap.ui.define([
                 oTable.addColumn(oReportedCol);
             });
         },
-
         // ==========================================
         // Value Help (F4) Logic
         // ==========================================
@@ -228,9 +230,133 @@ sap.ui.define([
             const oBinding = oEvent.getSource().getBinding("items");
             oBinding.filter([]); 
         },
+        onPostData() {
+            const oTable = this.byId("inspectionTable");
+            const aSelectedIndices = oTable.getSelectedIndices();
 
-        // onPostData() {
-        //     // Placeholder for future implementation
-        // }
+            // 1. Ensure the user selected at least one row
+            if (aSelectedIndices.length === 0) {
+                sap.m.MessageBox.warning("Please select at least one row to post.");
+                return;
+            }
+
+            const oLocalModel = this.getView().getModel("localModel");
+            const aPayload = [];
+            
+            let bValidationError = false;
+            let sErrorMessage = "";
+
+            // Regex for integers, floats, and decimals (with optional negative sign)
+            const rNumericRegex = /^-?\d+(\.\d+)?$/;
+
+            // 2. Loop through selected rows for Validation and Data Extraction
+            for (let i = 0; i < aSelectedIndices.length; i++) {
+                const iIndex = aSelectedIndices[i];
+                const oContext = oTable.getContextByIndex(iIndex);
+                const oRowData = oContext.getObject();
+                
+                const aProcessedChars = [];
+
+                // Loop through the dynamic characteristics of this specific row
+                for (let j = 0; j < oRowData._CharResult.length; j++) {
+                    const oChar = oRowData._CharResult[j];
+                    
+                    // Safely grab the user's input, trimming accidental spaces
+                    const sReportedValue = oChar.ReportedValue ? oChar.ReportedValue.trim() : "";
+
+                    // VALIDATION: Skip "PASSFAIL" target values from numeric validation
+                    if (sReportedValue !== "" && oChar.TargetValue !== "PASSFAIL") {
+                        if (!rNumericRegex.test(sReportedValue)) {
+                            bValidationError = true;
+                            sErrorMessage = `Invalid input "${sReportedValue}" for characteristic "${oChar.InspectionSpecificationText}" on Serial Number ${oRowData.SerialNumber}. Only numeric values are allowed.`;
+                            break; 
+                        }
+                    }
+
+                    // Map the item level EXACTLY as the backend sends it, plus ReportedValue
+                    aProcessedChars.push({
+                        InspectionLot: oChar.InspectionLot,
+                        SerialNumber: oChar.SerialNumber,
+                        InspectionCharacteristic: oChar.InspectionCharacteristic,
+                        InspectionSpecificationText: oChar.InspectionSpecificationText,
+                        TargetValue: oChar.TargetValue,
+                        ReportedValue: sReportedValue
+                    });
+                }
+
+                if (bValidationError) {
+                    break; 
+                }
+
+                // Map the header level EXACTLY as the backend sends it
+                aPayload.push({
+                    InspectionLot: oRowData.InspectionLot,
+                    SerialNumber: oRowData.SerialNumber,
+                    Material: oRowData.Material,
+                    Plant: oRowData.Plant,
+                    InspectionLotQuantity: oRowData.InspectionLotQuantity,
+                    InspectionLotQuantityUnit: oRowData.InspectionLotQuantityUnit,
+                    InspectionLotCreatedOn: oRowData.InspectionLotCreatedOn,
+                    _CharResult: aProcessedChars
+                });
+            }
+
+            // 3. Halt the post and show the error if validation failed
+            if (bValidationError) {
+                sap.m.MessageBox.error(sErrorMessage);
+                return;
+            }
+
+            // ========================================================================
+            // 4. Show the successfully validated Payload in a Pop-up Dialog
+            // ========================================================================
+            const sJsonString = JSON.stringify(aPayload, null, 2);
+            console.log("Payload prepared for backend:", sJsonString);
+
+            if (!this._oPayloadDialog) {
+                this._oPayloadDialog = new sap.m.Dialog({
+                    title: "Generated JSON Payload (Validated)",
+                    contentWidth: "600px",
+                    contentHeight: "400px",
+                    content: new sap.m.TextArea({
+                        value: sJsonString,
+                        editable: false,
+                        width: "100%",
+                        rows: 20
+                    }),
+                    endButton: new sap.m.Button({
+                        text: "Close",
+                        press: () => {
+                            this._oPayloadDialog.close();
+                        }
+                    })
+                });
+                this.getView().addDependent(this._oPayloadDialog);
+            } else {
+                this._oPayloadDialog.getContent()[0].setValue(sJsonString);
+            }
+            this._oPayloadDialog.open();
+
+            // ========================================================================
+            // 5. Backend Call
+            // ========================================================================
+            /*
+            oTable.setBusy(true);
+            const oModel = this.getOwnerComponent().getModel();
+            
+            const oAction = oModel.bindContext("/PostBulkResults(...)"); 
+            oAction.setParameter("ResultData", aPayload);
+            
+            oAction.execute().then(() => {
+                sap.m.MessageToast.show("Results posted successfully!");
+                oTable.clearSelection(); 
+                this.onSearch(); // Refresh the table automatically
+            }).catch((oError) => {
+                sap.m.MessageBox.error("Failed to post results to the backend.");
+            }).finally(() => {
+                oTable.setBusy(false);
+            });
+            */
+        }
     });
 });
