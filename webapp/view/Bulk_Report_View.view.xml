@@ -97,6 +97,7 @@
                 visibleRowCountMode="Auto"
                 class="sapUiSizeCompact"
                 rowSelectionChange=".onRowSelectionChange"
+                fixedColumnCount="3"
             >
                 <t:extension>
                     <OverflowToolbar>
@@ -143,6 +144,20 @@
                         </t:template>
                     </t:Column>
 
+                    <t:Column width="120px">
+                        <t:multiLabels>
+                            <Label text="" />
+                            <Label
+                                text="Serial Number"
+                                design="Bold"
+                            />
+                        </t:multiLabels>
+                        <t:template>
+                            <Text text="{localModel>SerialNumber}" />
+                        </t:template>
+                    </t:Column>
+
+
                     <t:Column width="80px">
                         <t:multiLabels>
                             <Label text="" />
@@ -184,19 +199,7 @@
                         </t:template>
                     </t:Column>
 
-                    <t:Column width="120px">
-                        <t:multiLabels>
-                            <Label text="" />
-                            <Label
-                                text="Serial Number"
-                                design="Bold"
-                            />
-                        </t:multiLabels>
-                        <t:template>
-                            <Text text="{localModel>SerialNumber}" />
-                        </t:template>
-                    </t:Column>
-
+                    
                     <!-- Dynamic Columns will be injected here via Controller -->
                 </t:columns>
             </t:Table>

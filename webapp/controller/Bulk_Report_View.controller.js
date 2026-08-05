@@ -259,6 +259,109 @@ sap.ui.define([
         // Post Data Logic
         // ==========================================
 
+        // onPostData() {
+        //     const oTable = this.byId("inspectionTable");
+        //     const aSelectedIndices = oTable.getSelectedIndices();
+
+        //     if (aSelectedIndices.length === 0) {
+        //         sap.m.MessageBox.warning("Please select at least one row to post.");
+        //         return;
+        //     }
+
+        //     const oLocalModel = this.getView().getModel("localModel");
+        //     const aPayload = [];
+            
+        //     let bValidationError = false;
+        //     let sErrorMessage = "";
+
+        //     const rNumericRegex = /^-?\d+(\.\d+)?$/;
+
+        //     for (let i = 0; i < aSelectedIndices.length; i++) {
+        //         const iIndex = aSelectedIndices[i];
+        //         const oContext = oTable.getContextByIndex(iIndex);
+        //         const oRowData = oContext.getObject();
+                
+        //         const aProcessedChars = [];
+
+        //         for (let j = 0; j < oRowData._CharResult.length; j++) {
+        //             const oChar = oRowData._CharResult[j];
+                    
+        //             const sReportedValue = oChar.ReportedValue ? oChar.ReportedValue.trim() : "";
+
+        //             // ADDED: 1. Strict Empty Check (Mandatory Validation)
+        //             if (sReportedValue === "") {
+        //                 bValidationError = true;
+        //                 // sErrorMessage = `Mandatory Field Missing: Please enter a value for "${oChar.InspectionSpecificationText}" on Serial Number ${oRowData.SerialNumber}.`;
+        //                 sErrorMessage = "Please enter a value for all fields in the selected row(s).";
+        //                 break; 
+        //             }
+
+        //             // ADDED: 2. Numeric Validation 
+        //                 if (!rNumericRegex.test(sReportedValue)) {
+        //                     bValidationError = true;
+        //                     sErrorMessage = `Invalid input "${sReportedValue}" for characteristic "${oChar.InspectionSpecificationText}" on Serial Number ${oRowData.SerialNumber}. Only numeric values are allowed.`;
+        //                     break; 
+        //                 }
+                    
+
+        //             aProcessedChars.push({
+        //                 InspectionLot: oChar.InspectionLot,
+        //                 SerialNumber: oChar.SerialNumber,
+        //                 InspectionCharacteristic: oChar.InspectionCharacteristic,
+        //                 InspectionSpecificationText: oChar.InspectionSpecificationText,
+        //                 TargetValue: oChar.TargetValue,
+        //                 ReportedValue: sReportedValue
+        //             });
+        //         }
+
+        //         if (bValidationError) {
+        //             break; 
+        //         }
+
+        //         aPayload.push({
+        //             InspectionLot: oRowData.InspectionLot,
+        //             SerialNumber: oRowData.SerialNumber,
+        //             Material: oRowData.Material,
+        //             Plant: oRowData.Plant,
+        //             InspectionLotQuantity: oRowData.InspectionLotQuantity,
+        //             InspectionLotQuantityUnit: oRowData.InspectionLotQuantityUnit,
+        //             InspectionLotCreatedOn: oRowData.InspectionLotCreatedOn,
+        //             _CharResult: aProcessedChars
+        //         });
+        //     }
+
+        //     if (bValidationError) {
+        //         sap.m.MessageBox.error(sErrorMessage);
+        //         return;
+        //     }
+
+        //     const sJsonString = JSON.stringify(aPayload, null, 2);
+        //     console.log("Payload prepared for backend:", sJsonString);
+
+        //     if (!this._oPayloadDialog) {
+        //         this._oPayloadDialog = new sap.m.Dialog({
+        //             title: "Generated JSON Payload (Validated)",
+        //             contentWidth: "600px",
+        //             contentHeight: "400px",
+        //             content: new sap.m.TextArea({
+        //                 editable: false,
+        //                 width: "100%",
+        //                 rows: 20
+        //             }),
+        //             endButton: new sap.m.Button({
+        //                 text: "Close",
+        //                 press: () => {
+        //                     this._oPayloadDialog.close();
+        //                 }
+        //             })
+        //         });
+        //         this.getView().addDependent(this._oPayloadDialog);
+        //     } 
+            
+        //     this._oPayloadDialog.getContent()[0].setValue(sJsonString);
+        //     this._oPayloadDialog.open();
+        // }
+
         onPostData() {
             const oTable = this.byId("inspectionTable");
             const aSelectedIndices = oTable.getSelectedIndices();
@@ -281,32 +384,39 @@ sap.ui.define([
                 const oContext = oTable.getContextByIndex(iIndex);
                 const oRowData = oContext.getObject();
                 
-                const aProcessedChars = [];
-
+                // Loop directly through characteristics to create the flat structure
                 for (let j = 0; j < oRowData._CharResult.length; j++) {
                     const oChar = oRowData._CharResult[j];
                     
                     const sReportedValue = oChar.ReportedValue ? oChar.ReportedValue.trim() : "";
 
-                    // ADDED: 1. Strict Empty Check (Mandatory Validation)
+                    // 1. Strict Empty Check (Mandatory Validation)
                     if (sReportedValue === "") {
                         bValidationError = true;
-                        // sErrorMessage = `Mandatory Field Missing: Please enter a value for "${oChar.InspectionSpecificationText}" on Serial Number ${oRowData.SerialNumber}.`;
                         sErrorMessage = "Please enter a value for all fields in the selected row(s).";
                         break; 
                     }
 
-                    // ADDED: 2. Numeric Validation 
-                        if (!rNumericRegex.test(sReportedValue)) {
-                            bValidationError = true;
-                            sErrorMessage = `Invalid input "${sReportedValue}" for characteristic "${oChar.InspectionSpecificationText}" on Serial Number ${oRowData.SerialNumber}. Only numeric values are allowed.`;
-                            break; 
-                        }
-                    
+                    // 2. Numeric Validation for ALL fields
+                    if (!rNumericRegex.test(sReportedValue)) {
+                        bValidationError = true;
+                        sErrorMessage = `Invalid input "${sReportedValue}" for characteristic "${oChar.InspectionSpecificationText}" on Serial Number ${oRowData.SerialNumber}. Only numeric values are allowed.`;
+                        break; 
+                    }
 
-                    aProcessedChars.push({
-                        InspectionLot: oChar.InspectionLot,
-                        SerialNumber: oChar.SerialNumber,
+                    // 3. FLATTENED PAYLOAD CREATION
+                    // Pushing header and item data together into a single flat object
+                    aPayload.push({
+                        // Header Fields
+                        InspectionLot: oRowData.InspectionLot,
+                        SerialNumber: oRowData.SerialNumber,
+                        Material: oRowData.Material,
+                        Plant: oRowData.Plant,
+                        InspectionLotQuantity: oRowData.InspectionLotQuantity,
+                        InspectionLotQuantityUnit: oRowData.InspectionLotQuantityUnit,
+                        InspectionLotCreatedOn: oRowData.InspectionLotCreatedOn,
+                        
+                        // Item Fields
                         InspectionCharacteristic: oChar.InspectionCharacteristic,
                         InspectionSpecificationText: oChar.InspectionSpecificationText,
                         TargetValue: oChar.TargetValue,
@@ -317,17 +427,6 @@ sap.ui.define([
                 if (bValidationError) {
                     break; 
                 }
-
-                aPayload.push({
-                    InspectionLot: oRowData.InspectionLot,
-                    SerialNumber: oRowData.SerialNumber,
-                    Material: oRowData.Material,
-                    Plant: oRowData.Plant,
-                    InspectionLotQuantity: oRowData.InspectionLotQuantity,
-                    InspectionLotQuantityUnit: oRowData.InspectionLotQuantityUnit,
-                    InspectionLotCreatedOn: oRowData.InspectionLotCreatedOn,
-                    _CharResult: aProcessedChars
-                });
             }
 
             if (bValidationError) {
@@ -340,7 +439,7 @@ sap.ui.define([
 
             if (!this._oPayloadDialog) {
                 this._oPayloadDialog = new sap.m.Dialog({
-                    title: "Generated JSON Payload (Validated)",
+                    title: "Generated JSON Payload (Flattened & Validated)",
                     contentWidth: "600px",
                     contentHeight: "400px",
                     content: new sap.m.TextArea({
