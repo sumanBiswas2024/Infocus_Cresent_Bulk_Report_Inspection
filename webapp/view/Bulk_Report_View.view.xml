@@ -103,6 +103,11 @@
                     <OverflowToolbar>
                         <ToolbarSpacer />
                         <!-- Reserved for Future Post Call -->
+                        <Text 
+                            id="txtSelectedRowCount" 
+                            text="Selected Rows: 0" 
+                            class="sapUiSmallMarginEnd" />
+                            
                         <Button
                             id="btnPostData"
                             text="Post Data"
@@ -156,7 +161,6 @@
                             <Text text="{localModel>SerialNumber}" />
                         </t:template>
                     </t:Column>
-
 
                     <t:Column width="80px">
                         <t:multiLabels>

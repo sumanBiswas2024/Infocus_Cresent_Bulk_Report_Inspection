@@ -66,6 +66,7 @@
                 <Property Name="InspectionLotQuantity" Type="Edm.Byte" Nullable="false"/>
                 <Property Name="InspectionLotQuantityUnit" Type="Edm.String" Nullable="false" MaxLength="3"/>
                 <Property Name="InspectionLotCreatedOn" Type="Edm.Date"/>
+                <Property Name="SAP__Messages" Type="Collection(com.sap.gateway.srvd.zui_insp_lot_bulk_result.v0001.SAP__Message)" Nullable="false"/>
                 <NavigationProperty Name="_CharResult" Type="Collection(com.sap.gateway.srvd.zui_insp_lot_bulk_result.v0001.InspectionLotCharResultType)" Partner="_SerialResult">
                     <OnDelete Action="Cascade"/>
                 </NavigationProperty>
@@ -81,11 +82,39 @@
                 <Property Name="InspectionCharacteristic" Type="Edm.String" Nullable="false" MaxLength="4"/>
                 <Property Name="InspectionSpecificationText" Type="Edm.String" Nullable="false" MaxLength="40"/>
                 <Property Name="TargetValue" Type="Edm.String" Nullable="false" MaxLength="61"/>
+                <Property Name="InspSpecIsQuantitative" Type="Edm.Boolean" Nullable="false"/>
+                <Property Name="ReportedValue" Type="Edm.Double" Nullable="false"/>
                 <NavigationProperty Name="_SerialResult" Type="com.sap.gateway.srvd.zui_insp_lot_bulk_result.v0001.InspectionLotSerialResultType" Nullable="false" Partner="_CharResult">
                     <ReferentialConstraint Property="InspectionLot" ReferencedProperty="InspectionLot"/>
                     <ReferentialConstraint Property="SerialNumber" ReferencedProperty="SerialNumber"/>
                 </NavigationProperty>
             </EntityType>
+            <ComplexType Name="ZST_INSP_REPORTED_RESULT">
+                <Property Name="INSPECTION_LOT" Type="Edm.String" Nullable="false" MaxLength="12"/>
+                <Property Name="SERIAL_NUMBER" Type="Edm.String" Nullable="false" MaxLength="20"/>
+                <Property Name="MATERIAL" Type="Edm.String" Nullable="false" MaxLength="40"/>
+                <Property Name="PLANT" Type="Edm.String" Nullable="false" MaxLength="10"/>
+                <Property Name="INSPECTION_LOT_QUANTITY" Type="Edm.String" Nullable="false" MaxLength="20"/>
+                <Property Name="INSPECTION_LOT_QUANTITY_UNIT" Type="Edm.String" Nullable="false" MaxLength="10"/>
+                <Property Name="INSPECTION_LOT_CREATED_ON" Type="Edm.String" Nullable="false" MaxLength="10"/>
+                <Property Name="INSPECTION_CHARACTERISTIC" Type="Edm.String" Nullable="false" MaxLength="4"/>
+                <Property Name="INSPECTION_SPECIFICATION_TEXT" Type="Edm.String" Nullable="false" MaxLength="60"/>
+                <Property Name="TARGET_VALUE" Type="Edm.String" Nullable="false" MaxLength="40"/>
+                <Property Name="REPORTED_VALUE" Type="Edm.String" Nullable="false" MaxLength="40"/>
+            </ComplexType>
+            <ComplexType Name="SAP__Message">
+                <Property Name="code" Type="Edm.String" Nullable="false"/>
+                <Property Name="message" Type="Edm.String" Nullable="false"/>
+                <Property Name="target" Type="Edm.String"/>
+                <Property Name="additionalTargets" Type="Collection(Edm.String)" Nullable="false"/>
+                <Property Name="transition" Type="Edm.Boolean" Nullable="false"/>
+                <Property Name="numericSeverity" Type="Edm.Byte" Nullable="false"/>
+                <Property Name="longtextUrl" Type="Edm.String"/>
+            </ComplexType>
+            <Action Name="saveReportedResults" IsBound="true">
+                <Parameter Name="_it" Type="Collection(com.sap.gateway.srvd.zui_insp_lot_bulk_result.v0001.InspectionLotSerialResultType)" Nullable="false"/>
+                <Parameter Name="RESULTS" Type="Collection(com.sap.gateway.srvd.zui_insp_lot_bulk_result.v0001.ZST_INSP_REPORTED_RESULT)" Nullable="false"/>
+            </Action>
             <EntityContainer Name="Container">
                 <EntitySet Name="InspectionLotCharResult" EntityType="com.sap.gateway.srvd.zui_insp_lot_bulk_result.v0001.InspectionLotCharResultType">
                     <NavigationPropertyBinding Path="_SerialResult" Target="InspectionLotSerialResult"/>
@@ -94,6 +123,12 @@
                     <NavigationPropertyBinding Path="_CharResult" Target="InspectionLotCharResult"/>
                 </EntitySet>
             </EntityContainer>
+            <Annotations Target="SAP__self.ZST_INSP_REPORTED_RESULT/INSPECTION_LOT">
+                <Annotation Term="SAP__common.IsDigitSequence"/>
+            </Annotations>
+            <Annotations Target="SAP__self.ZST_INSP_REPORTED_RESULT/INSPECTION_CHARACTERISTIC">
+                <Annotation Term="SAP__common.IsDigitSequence"/>
+            </Annotations>
             <Annotations Target="SAP__self.InspectionLotSerialResultType/InspectionLot">
                 <Annotation Term="SAP__common.IsDigitSequence"/>
                 <Annotation Term="SAP__common.Label" String="Inspection Lot"/>
@@ -208,6 +243,7 @@
                         <PropertyPath>InspectionLot</PropertyPath>
                     </Collection>
                 </Annotation>
+                <Annotation Term="SAP__common.Messages" Path="SAP__Messages"/>
             </Annotations>
             <Annotations Target="SAP__self.Container">
                 <Annotation Term="SAP__CodeList.UnitsOfMeasure">
@@ -350,6 +386,14 @@
             <Annotations Target="SAP__self.InspectionLotCharResultType/InspectionSpecificationText">
                 <Annotation Term="SAP__common.Label" String="Characteristic Short Text"/>
                 <Annotation Term="SAP__common.QuickInfo" String="Short Text for Inspection Characteristic"/>
+            </Annotations>
+            <Annotations Target="SAP__self.InspectionLotCharResultType/InspSpecIsQuantitative">
+                <Annotation Term="SAP__common.Label" String="Is Quantitative Characteristic"/>
+            </Annotations>
+            <Annotations Target="SAP__self.InspectionLotCharResultType/ReportedValue">
+                <Annotation Term="SAP__common.Label" String="Measured Value"/>
+                <Annotation Term="SAP__common.QuickInfo" String="Measured Value for a Sample Unit"/>
+                <Annotation Term="SAP__common.DocumentationRef" String="urn:sap-com:documentation:key?=type=DE&amp;id=QMESSWERT"/>
             </Annotations>
         </Schema>
     </edmx:DataServices>

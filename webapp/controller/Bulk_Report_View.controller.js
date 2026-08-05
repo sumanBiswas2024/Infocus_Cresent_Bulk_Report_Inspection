@@ -10,7 +10,7 @@ sap.ui.define([
     "sap/m/Text",
     "sap/m/Input",
     "sap/ui/core/Fragment",
-    "sap/ui/core/format/DateFormat" 
+    "sap/ui/core/format/DateFormat"
 ], (Controller, JSONModel, Filter, FilterOperator, MessageToast, MessageBox, Column, Label, Text, Input, Fragment, DateFormat) => {
     "use strict";
 
@@ -56,7 +56,7 @@ sap.ui.define([
 
                 this._aCurrentFilters.push(new Filter({
                     path: "InspectionLotCreatedOn",
-                    operator: FilterOperator.BT, 
+                    operator: FilterOperator.BT,
                     value1: oFormat.format(oStartDate),
                     value2: oFormat.format(oEndDate)
                 }));
@@ -108,7 +108,7 @@ sap.ui.define([
                 // ADDED: Map through the data and inject _Selected property for the mandatory asterisk
                 const aNewData = aContexts.map(oContext => {
                     const oRow = oContext.getObject();
-                    oRow._Selected = false; 
+                    oRow._Selected = false;
                     return oRow;
                 });
 
@@ -147,9 +147,14 @@ sap.ui.define([
             const oTable = oEvent.getSource();
             const aSelectedIndices = oTable.getSelectedIndices();
             const oPostButton = this.byId("btnPostData");
-            
+
+            const oSelectedCountText = this.byId("txtSelectedRowCount");
+
             // 1. Enable/Disable Post Button
             oPostButton.setEnabled(aSelectedIndices.length > 0);
+
+            // Dynamically update the selected row count text
+            oSelectedCountText.setText(`Selected Rows: ${aSelectedIndices.length}`);
 
             // 2. ADDED: Toggle the _Selected property to show/hide the red asterisks
             const oLocalModel = this.getView().getModel("localModel");
@@ -163,7 +168,7 @@ sap.ui.define([
                 aSelectedIndices.forEach(iIndex => {
                     const oContext = oTable.getContextByIndex(iIndex);
                     if (oContext) {
-                        const sPath = oContext.getPath(); 
+                        const sPath = oContext.getPath();
                         oLocalModel.setProperty(sPath + "/_Selected", true);
                     }
                 });
@@ -189,9 +194,9 @@ sap.ui.define([
                 // Sub-Column 1: Target Value
                 const oTargetCol = new Column({
                     width: "140px",
-                    headerSpan: [2, 1], 
+                    headerSpan: [2, 1],
                     multiLabels: [
-                        new Label({ text: sSpecText, textAlign: "Center", width: "100%" ,design: "Bold"}),
+                        new Label({ text: sSpecText, textAlign: "Center", width: "100%", design: "Bold" }),
                         new Label({ text: "Target Value", textAlign: "Center", width: "100%", design: "Bold" })
                     ],
                     template: new Text({
@@ -204,7 +209,7 @@ sap.ui.define([
                 const oReportedCol = new Column({
                     width: "140px",
                     multiLabels: [
-                        new Label({ text: sSpecText, textAlign: "Center", width: "100%" , design: "Bold"}), 
+                        new Label({ text: sSpecText, textAlign: "Center", width: "100%", design: "Bold" }),
                         new Label({ text: "Value Reported", textAlign: "Center", width: "100%", design: "Bold" })
                     ],
                     template: new Input({
@@ -252,7 +257,7 @@ sap.ui.define([
                 this.byId("inputMaterial").setValue(sMaterial);
             }
             const oBinding = oEvent.getSource().getBinding("items");
-            oBinding.filter([]); 
+            oBinding.filter([]);
         },
 
         // ==========================================
@@ -270,7 +275,7 @@ sap.ui.define([
 
         //     const oLocalModel = this.getView().getModel("localModel");
         //     const aPayload = [];
-            
+
         //     let bValidationError = false;
         //     let sErrorMessage = "";
 
@@ -280,12 +285,12 @@ sap.ui.define([
         //         const iIndex = aSelectedIndices[i];
         //         const oContext = oTable.getContextByIndex(iIndex);
         //         const oRowData = oContext.getObject();
-                
+
         //         const aProcessedChars = [];
 
         //         for (let j = 0; j < oRowData._CharResult.length; j++) {
         //             const oChar = oRowData._CharResult[j];
-                    
+
         //             const sReportedValue = oChar.ReportedValue ? oChar.ReportedValue.trim() : "";
 
         //             // ADDED: 1. Strict Empty Check (Mandatory Validation)
@@ -302,7 +307,7 @@ sap.ui.define([
         //                     sErrorMessage = `Invalid input "${sReportedValue}" for characteristic "${oChar.InspectionSpecificationText}" on Serial Number ${oRowData.SerialNumber}. Only numeric values are allowed.`;
         //                     break; 
         //                 }
-                    
+
 
         //             aProcessedChars.push({
         //                 InspectionLot: oChar.InspectionLot,
@@ -357,7 +362,7 @@ sap.ui.define([
         //         });
         //         this.getView().addDependent(this._oPayloadDialog);
         //     } 
-            
+
         //     this._oPayloadDialog.getContent()[0].setValue(sJsonString);
         //     this._oPayloadDialog.open();
         // }
@@ -371,64 +376,75 @@ sap.ui.define([
                 return;
             }
 
+            const oModel = this.getView().getModel();
             const oLocalModel = this.getView().getModel("localModel");
             const aPayload = [];
-            
+
             let bValidationError = false;
             let sErrorMessage = "";
 
             const rNumericRegex = /^-?\d+(\.\d+)?$/;
 
+            // 1. Process and Flatten the Payload
             for (let i = 0; i < aSelectedIndices.length; i++) {
                 const iIndex = aSelectedIndices[i];
                 const oContext = oTable.getContextByIndex(iIndex);
                 const oRowData = oContext.getObject();
-                
-                // Loop directly through characteristics to create the flat structure
+
                 for (let j = 0; j < oRowData._CharResult.length; j++) {
                     const oChar = oRowData._CharResult[j];
-                    
-                    const sReportedValue = oChar.ReportedValue ? oChar.ReportedValue.trim() : "";
+                    let sReportedValue = oChar.ReportedValue ? oChar.ReportedValue.toString().trim() : "";
 
-                    // 1. Strict Empty Check (Mandatory Validation)
+                    // Validation: Strict Empty Check
                     if (sReportedValue === "") {
                         bValidationError = true;
                         sErrorMessage = "Please enter a value for all fields in the selected row(s).";
-                        break; 
+                        break;
                     }
 
-                    // 2. Numeric Validation for ALL fields
-                    if (!rNumericRegex.test(sReportedValue)) {
-                        bValidationError = true;
-                        sErrorMessage = `Invalid input "${sReportedValue}" for characteristic "${oChar.InspectionSpecificationText}" on Serial Number ${oRowData.SerialNumber}. Only numeric values are allowed.`;
-                        break; 
+                    // 2. Dynamic Validation (Handles any Text vs Numeric setup)
+                    if (oChar.InspSpecIsQuantitative) {
+
+                        // --- NUMERIC CHARACTERISTIC ---
+                        if (!rNumericRegex.test(sReportedValue)) {
+                            bValidationError = true;
+                            sErrorMessage = `Invalid input "${sReportedValue}" for characteristic "${oChar.InspectionSpecificationText}" on Serial Number ${oRowData.SerialNumber}. Only numeric values are allowed.`;
+                            break;
+                        }
+
+                    } else {
+
+                        // --- QUALITATIVE (TEXT) CHARACTERISTIC ---
+                        // If it is not quantitative, it accepts text. 
+                        // We do not need the numeric regex. We can just convert it to uppercase
+                        // because standard SAP qualitative codes are generally uppercase.
+                        sReportedValue = sReportedValue.toUpperCase();
+
                     }
 
-                    // 3. FLATTENED PAYLOAD CREATION
-                    // Pushing header and item data together into a single flat object
+                    // Flattened Payload Creation with UPPERCASE keys matching the backend Complex Type
                     aPayload.push({
-                        // Header Fields
-                        InspectionLot: oRowData.InspectionLot,
-                        SerialNumber: oRowData.SerialNumber,
-                        Material: oRowData.Material,
-                        Plant: oRowData.Plant,
-                        InspectionLotQuantity: oRowData.InspectionLotQuantity,
-                        InspectionLotQuantityUnit: oRowData.InspectionLotQuantityUnit,
-                        InspectionLotCreatedOn: oRowData.InspectionLotCreatedOn,
-                        
-                        // Item Fields
-                        InspectionCharacteristic: oChar.InspectionCharacteristic,
-                        InspectionSpecificationText: oChar.InspectionSpecificationText,
-                        TargetValue: oChar.TargetValue,
-                        ReportedValue: sReportedValue
+                        // Header Data
+                        INSPECTION_LOT: oRowData.InspectionLot,
+                        SERIAL_NUMBER: oRowData.SerialNumber,
+                        MATERIAL: oRowData.Material,
+                        PLANT: oRowData.Plant,
+                        INSPECTION_LOT_QUANTITY: oRowData.InspectionLotQuantity.toString(),
+                        INSPECTION_LOT_QUANTITY_UNIT: oRowData.InspectionLotQuantityUnit,
+                        INSPECTION_LOT_CREATED_ON: oRowData.InspectionLotCreatedOn,
+
+                        // Child Data
+                        INSPECTION_CHARACTERISTIC: oChar.InspectionCharacteristic,
+                        INSPECTION_SPECIFICATION_TEXT: oChar.InspectionSpecificationText,
+                        TARGET_VALUE: oChar.TargetValue,
+                        REPORTED_VALUE: sReportedValue
                     });
                 }
 
-                if (bValidationError) {
-                    break; 
-                }
+                if (bValidationError) break;
             }
 
+            // If there's an error, show it and STOP execution entirely.
             if (bValidationError) {
                 sap.m.MessageBox.error(sErrorMessage);
                 return;
@@ -455,10 +471,39 @@ sap.ui.define([
                     })
                 });
                 this.getView().addDependent(this._oPayloadDialog);
-            } 
-            
+            }
+
             this._oPayloadDialog.getContent()[0].setValue(sJsonString);
             this._oPayloadDialog.open();
+
+            // 2. Execute the OData V4 Bound Action
+            // oTable.setBusy(true);
+
+            // // Bind to the specific action defined in the metadata
+            // const oAction = oModel.bindContext("/InspectionLotSerialResult/com.sap.gateway.srvd.zui_insp_lot_bulk_result.v0001.saveReportedResults(...)");
+
+            // // Pass the flattened array to the exact parameter name
+            // oAction.setParameter("RESULTS", aPayload);
+
+            // oAction.execute().then(() => {
+            //     sap.m.MessageToast.show("Results successfully posted to SAP!");
+            //     oTable.clearSelection();
+
+            //     // Clear the count text we added earlier
+            //     const oSelectedCountText = this.byId("txtSelectedRowCount");
+            //     if (oSelectedCountText) {
+            //         oSelectedCountText.setText("Selected Rows: 0");
+            //     }
+
+            //     // 3. Re-fetch data to automatically remove posted rows (via backend filter)
+            //     this.onSearch(); 
+
+            // }).catch((oError) => {
+            //     sap.m.MessageBox.error("Failed to post data. Please check the backend logs.");
+            //     console.error("Action Error:", oError);
+            // }).finally(() => {
+            //     oTable.setBusy(false);
+            // });
         }
     });
 });
