@@ -106,9 +106,25 @@ sap.ui.define([
                 this._iCurrentSkip += this._iPageSize;
 
                 // ADDED: Map through the data and inject _Selected property for the mandatory asterisk
+                // const aNewData = aContexts.map(oContext => {
+                //     const oRow = oContext.getObject();
+                //     oRow._Selected = false;
+                //     return oRow;
+                // });
+                // ADDED: Map through the data and inject _Selected property for the mandatory asterisk
                 const aNewData = aContexts.map(oContext => {
                     const oRow = oContext.getObject();
                     oRow._Selected = false;
+
+                    // ADDED: Intercept default 0 from the backend and force it to blank
+                    if (oRow._CharResult && Array.isArray(oRow._CharResult)) {
+                        oRow._CharResult.forEach(oChar => {
+                            if (oChar.ReportedValue === 0) {
+                                oChar.ReportedValue = "";
+                            }
+                        });
+                    }
+
                     return oRow;
                 });
 
@@ -117,6 +133,8 @@ sap.ui.define([
 
                 const aCombinedData = aCurrentData.concat(aNewData);
                 oLocalModel.setProperty("/results", aCombinedData);
+
+                console.log("Fetched Data: ", aCombinedData);
 
                 if (aCurrentData.length === 0 && aNewData.length > 0) {
                     this._generateDynamicColumns(aNewData[0]._CharResult);
@@ -451,59 +469,67 @@ sap.ui.define([
             }
 
             const sJsonString = JSON.stringify(aPayload, null, 2);
-            console.log("Payload prepared for backend:", sJsonString);
+            // console.log("Payload prepared for backend:", sJsonString);
+            console.log("Payload prepared for backend:", aPayload);
 
-            if (!this._oPayloadDialog) {
-                this._oPayloadDialog = new sap.m.Dialog({
-                    title: "Generated JSON Payload (Flattened & Validated)",
-                    contentWidth: "600px",
-                    contentHeight: "400px",
-                    content: new sap.m.TextArea({
-                        editable: false,
-                        width: "100%",
-                        rows: 20
-                    }),
-                    endButton: new sap.m.Button({
-                        text: "Close",
-                        press: () => {
-                            this._oPayloadDialog.close();
-                        }
-                    })
-                });
-                this.getView().addDependent(this._oPayloadDialog);
-            }
+            // if (!this._oPayloadDialog) {
+            //     this._oPayloadDialog = new sap.m.Dialog({
+            //         title: "Generated JSON Payload (Flattened & Validated)",
+            //         contentWidth: "600px",
+            //         contentHeight: "400px",
+            //         content: new sap.m.TextArea({
+            //             editable: false,
+            //             width: "100%",
+            //             rows: 20
+            //         }),
+            //         endButton: new sap.m.Button({
+            //             text: "Close",
+            //             press: () => {
+            //                 this._oPayloadDialog.close();
+            //             }
+            //         })
+            //     });
+            //     this.getView().addDependent(this._oPayloadDialog);
+            // }
 
-            this._oPayloadDialog.getContent()[0].setValue(sJsonString);
-            this._oPayloadDialog.open();
+            // this._oPayloadDialog.getContent()[0].setValue(sJsonString);
+            // this._oPayloadDialog.open();
 
+            // ==========================================
             // 2. Execute the OData V4 Bound Action
-            // oTable.setBusy(true);
+            // ==========================================
+            oTable.setBusy(true);
 
-            // // Bind to the specific action defined in the metadata
-            // const oAction = oModel.bindContext("/InspectionLotSerialResult/com.sap.gateway.srvd.zui_insp_lot_bulk_result.v0001.saveReportedResults(...)");
+            // Bind to the specific action defined in the metadata bound to the collection
+            const oAction = oModel.bindContext("/InspectionLotSerialResult/com.sap.gateway.srvd.zui_insp_lot_bulk_result.v0001.saveReportedResults(...)");
 
-            // // Pass the flattened array to the exact parameter name
-            // oAction.setParameter("RESULTS", aPayload);
+            // Pass the flattened array to the exact parameter name "RESULTS"
+            oAction.setParameter("RESULTS", aPayload);
 
-            // oAction.execute().then(() => {
-            //     sap.m.MessageToast.show("Results successfully posted to SAP!");
-            //     oTable.clearSelection();
+            // Execute the action
+            oAction.execute().then(() => {
+                sap.m.MessageToast.show("Results successfully posted to SAP!");
+                console.log("Results successfully posted to SAP!");
 
-            //     // Clear the count text we added earlier
-            //     const oSelectedCountText = this.byId("txtSelectedRowCount");
-            //     if (oSelectedCountText) {
-            //         oSelectedCountText.setText("Selected Rows: 0");
-            //     }
+                // Clear the table selections
+                oTable.clearSelection();
 
-            //     // 3. Re-fetch data to automatically remove posted rows (via backend filter)
-            //     this.onSearch(); 
+                // Clear the selected row count text
+                const oSelectedCountText = this.byId("txtSelectedRowCount");
+                if (oSelectedCountText) {
+                    oSelectedCountText.setText("Selected Rows: 0");
+                }
 
-            // }).catch((oError) => {
-            //     sap.m.MessageBox.error("Failed to post data. Please check the backend logs.");
-            //     console.error("Action Error:", oError);
-            // }).finally(() => {
-            //     oTable.setBusy(false);
-            // });
+                // 3. Re-fetch data. If the backend added the 'WHERE' filter to their CDS view,
+                // the rows you just posted will automatically vanish from the table!
+                this.onSearch();
+
+            }).catch((oError) => {
+                sap.m.MessageBox.error("Failed to post data. Please check the backend logs.");
+                console.error("Action Error:", oError);
+            }).finally(() => {
+                oTable.setBusy(false);
+            });
         }
     });
 });
