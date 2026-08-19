@@ -70,6 +70,86 @@ sap.ui.define([
             this._fetchData();
         },
 
+        // _fetchData() {
+        //     if (this._bIsFetching || !this._bHasMoreData) return;
+
+        //     this._bIsFetching = true;
+        //     const oTable = this.byId("inspectionTable");
+        //     oTable.setBusy(true);
+
+        //     const oModel = this.getOwnerComponent().getModel();
+
+        //     const oListBinding = oModel.bindList(
+        //         "/InspectionLotSerialResult",
+        //         null,
+        //         null,
+        //         this._aCurrentFilters,
+        //         {
+        //             $expand: "_CharResult"
+        //         }
+        //     );
+
+        //     oListBinding.requestContexts(this._iCurrentSkip, this._iPageSize).then((aContexts) => {
+
+        //         if (aContexts.length === 0 && this._iCurrentSkip === 0) {
+        //             this._bHasMoreData = false;
+        //             this._bIsFetching = false;
+        //             oTable.setBusy(false);
+        //             MessageBox.information("No inspection lot data found for the selected filters.");
+        //             return;
+        //         }
+
+        //         if (aContexts.length < this._iPageSize) {
+        //             this._bHasMoreData = false;
+        //         }
+
+        //         this._iCurrentSkip += this._iPageSize;
+
+        //         // ADDED: Map through the data and inject _Selected property for the mandatory asterisk
+        //         // const aNewData = aContexts.map(oContext => {
+        //         //     const oRow = oContext.getObject();
+        //         //     oRow._Selected = false;
+        //         //     return oRow;
+        //         // });
+        //         // ADDED: Map through the data and inject _Selected property for the mandatory asterisk
+        //         const aNewData = aContexts.map(oContext => {
+        //             const oRow = oContext.getObject();
+        //             oRow._Selected = false;
+
+        //             // ADDED: Intercept default 0 from the backend and force it to blank
+        //             if (oRow._CharResult && Array.isArray(oRow._CharResult)) {
+        //                 oRow._CharResult.forEach(oChar => {
+        //                     if (oChar.ReportedValue === 0) {
+        //                         oChar.ReportedValue = "";
+        //                     }
+        //                 });
+        //             }
+
+        //             return oRow;
+        //         });
+
+        //         const oLocalModel = this.getView().getModel("localModel");
+        //         const aCurrentData = oLocalModel.getProperty("/results");
+
+        //         const aCombinedData = aCurrentData.concat(aNewData);
+        //         oLocalModel.setProperty("/results", aCombinedData);
+
+        //         console.log("Fetched Data: ", aCombinedData);
+
+        //         if (aCurrentData.length === 0 && aNewData.length > 0) {
+        //             this._generateDynamicColumns(aNewData[0]._CharResult);
+        //         }
+
+        //         this._bIsFetching = false;
+        //         oTable.setBusy(false);
+
+        //     }).catch((oError) => {
+        //         this._bIsFetching = false;
+        //         oTable.setBusy(false);
+        //         MessageBox.error("Failed to fetch data from the server.");
+        //     });
+        // },
+
         _fetchData() {
             if (this._bIsFetching || !this._bHasMoreData) return;
 
@@ -105,39 +185,61 @@ sap.ui.define([
 
                 this._iCurrentSkip += this._iPageSize;
 
-                // ADDED: Map through the data and inject _Selected property for the mandatory asterisk
-                // const aNewData = aContexts.map(oContext => {
-                //     const oRow = oContext.getObject();
-                //     oRow._Selected = false;
-                //     return oRow;
-                // });
-                // ADDED: Map through the data and inject _Selected property for the mandatory asterisk
-                const aNewData = aContexts.map(oContext => {
+                // =========================================================
+                // NEW LOGIC: Dictionary Mapping & Master Column Generation
+                // =========================================================
+                const aNewData = [];
+                const aMasterColumnList = []; 
+                const oColumnTracker = {};    
+
+                aContexts.forEach(oContext => {
                     const oRow = oContext.getObject();
                     oRow._Selected = false;
+                    
+                    // Create a Dictionary to bind data by Characteristic ID
+                    oRow._CharDict = {}; 
+                    let bHasReportedValue = false;
 
-                    // ADDED: Intercept default 0 from the backend and force it to blank
                     if (oRow._CharResult && Array.isArray(oRow._CharResult)) {
                         oRow._CharResult.forEach(oChar => {
-                            if (oChar.ReportedValue === 0) {
-                                oChar.ReportedValue = "";
+                            const sCharId = oChar.InspectionCharacteristic;
+
+                            // 1. Build Master List of all unique columns across all lots
+                            if (!oColumnTracker[sCharId]) {
+                                oColumnTracker[sCharId] = true;
+                                aMasterColumnList.push({
+                                    id: sCharId,
+                                    name: oChar.InspectionSpecificationText
+                                });
                             }
+
+                            // 2. Format reported value
+                            if (oChar.ReportedValue === 0 || oChar.ReportedValue === null || oChar.ReportedValue === "") {
+                                oChar.ReportedValue = "";
+                            } else {
+                                bHasReportedValue = true; 
+                            }
+
+                            // 3. Map characteristic by ID into the dictionary
+                            oRow._CharDict[sCharId] = oChar; 
                         });
                     }
 
-                    return oRow;
+                    // 4. Only push to table if nothing is reported yet
+                    if (!bHasReportedValue) {
+                        aNewData.push(oRow);
+                    }
                 });
 
                 const oLocalModel = this.getView().getModel("localModel");
                 const aCurrentData = oLocalModel.getProperty("/results");
-
                 const aCombinedData = aCurrentData.concat(aNewData);
+                
                 oLocalModel.setProperty("/results", aCombinedData);
 
-                console.log("Fetched Data: ", aCombinedData);
-
-                if (aCurrentData.length === 0 && aNewData.length > 0) {
-                    this._generateDynamicColumns(aNewData[0]._CharResult);
+                // Generate Columns based on the Master List of unique characteristics
+                if (aMasterColumnList.length > 0 && this._iCurrentSkip === this._iPageSize) {
+                    this._generateDynamicColumns(aMasterColumnList);
                 }
 
                 this._bIsFetching = false;
@@ -202,12 +304,13 @@ sap.ui.define([
             }
         },
 
-        _generateDynamicColumns(aCharacteristics) {
+        _generateDynamicColumns(aMasterColumnList) {
             const oTable = this.byId("inspectionTable");
-            if (!aCharacteristics) return;
+            if (!aMasterColumnList) return;
 
-            aCharacteristics.forEach((oChar, iIndex) => {
-                const sSpecText = oChar.InspectionSpecificationText;
+            aMasterColumnList.forEach((oMasterCol) => {
+                const sCharId = oMasterCol.id;
+                const sSpecText = oMasterCol.name;
 
                 // Sub-Column 1: Target Value
                 const oTargetCol = new Column({
@@ -218,12 +321,13 @@ sap.ui.define([
                         new Label({ text: "Target Value", textAlign: "Center", width: "100%", design: "Bold" })
                     ],
                     template: new Text({
-                        text: "{localModel>_CharResult/" + iIndex + "/TargetValue}"
+                        // Show value if it exists for this lot, otherwise show a dash "-"
+                        text: "{= ${localModel>_CharDict/" + sCharId + "/TargetValue} || '-' }"
                     })
                 });
                 oTable.addColumn(oTargetCol);
 
-                // Sub-Column 2: Value Reported
+                // Sub-Column 2: Value Reported (Input Field)
                 const oReportedCol = new Column({
                     width: "140px",
                     multiLabels: [
@@ -231,18 +335,21 @@ sap.ui.define([
                         new Label({ text: "Value Reported", textAlign: "Center", width: "100%", design: "Bold" })
                     ],
                     template: new Input({
-                        value: "{localModel>_CharResult/" + iIndex + "/ReportedValue}",
-                        required: "{localModel>_Selected}" // ADDED: Binds the red asterisk to the selection state
+                        // Bind directly to the specific Characteristic ID
+                        value: "{localModel>_CharDict/" + sCharId + "/ReportedValue}",
+                        required: "{localModel>_Selected}",
+                        // Hide the input completely if this characteristic doesn't exist for this lot
+                        enabled: "{= ${localModel>_CharDict/" + sCharId + "} !== undefined }"
                     })
                 });
                 oTable.addColumn(oReportedCol);
             });
         },
-
+        
         // ==========================================
         // Value Help (F4) Logic
         // ==========================================
-
+        
         onMaterialValueHelp(oEvent) {
             const oView = this.getView();
 
