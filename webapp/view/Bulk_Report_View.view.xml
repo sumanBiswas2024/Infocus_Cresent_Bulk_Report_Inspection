@@ -102,15 +102,22 @@
                 <t:extension>
                     <OverflowToolbar>
                         <ToolbarSpacer />
-                        <!-- Reserved for Future Post Call -->
-                        <Text 
-                            id="txtSelectedRowCount" 
-                            text="Selected Rows: 0" 
-                            class="sapUiSmallMarginEnd" />
-                            
+                        <Text
+                            id="txtSelectedRowCount"
+                            text="Selected Rows: 0"
+                            class="sapUiSmallMarginEnd"
+                        />
+
+                        <SearchField
+                            id="tableSearchField"
+                            placeholder="Search Lot No or Serial Number..."
+                            liveChange=".onTableSearch"
+                            width="300px"
+                        />
+
                         <Button
                             id="btnPostData"
-                            text="Post Data"
+                            text="Save Data"
                             type="Emphasized"
                             icon="sap-icon://save"
                             press=".onPostData"
@@ -136,7 +143,11 @@
                         </t:template>
                     </t:Column>
 
-                    <t:Column width="170px">
+                    <t:Column
+                        width="170px"
+                        sortProperty="InspectionLot"
+                        filterProperty="InspectionLot"
+                    >
                         <t:multiLabels>
                             <Label text="" />
                             <Label
@@ -149,7 +160,11 @@
                         </t:template>
                     </t:Column>
 
-                    <t:Column width="120px">
+                    <t:Column
+                        width="120px"
+                        sortProperty="SerialNumber"
+                        filterProperty="SerialNumber"
+                    >
                         <t:multiLabels>
                             <Label text="" />
                             <Label
@@ -203,7 +218,6 @@
                         </t:template>
                     </t:Column>
 
-                    
                     <!-- Dynamic Columns will be injected here via Controller -->
                 </t:columns>
             </t:Table>

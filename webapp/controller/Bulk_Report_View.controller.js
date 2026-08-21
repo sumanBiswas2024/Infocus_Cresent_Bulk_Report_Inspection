@@ -637,6 +637,39 @@ sap.ui.define([
             }).finally(() => {
                 oTable.setBusy(false);
             });
+        },
+
+        // ==========================================
+        // Table Search / Filter Logic
+        // ==========================================
+        onTableSearch(oEvent) {
+            // 1. Get the typed search query
+            const sQuery = oEvent.getParameter("newValue").trim();
+            const oTable = this.byId("inspectionTable");
+            const oBinding = oTable.getBinding("rows");
+
+            if (!oBinding) {
+                return;
+            }
+
+            // 2. If the search box is cleared, remove all table filters
+            if (!sQuery) {
+                oBinding.filter([]);
+                return;
+            }
+
+            // 3. Create filters for InspectionLot and SerialNumber
+            const oLotFilter = new sap.ui.model.Filter("InspectionLot", sap.ui.model.FilterOperator.Contains, sQuery);
+            const oSerialFilter = new sap.ui.model.Filter("SerialNumber", sap.ui.model.FilterOperator.Contains, sQuery);
+
+            // 4. Combine them with "OR" logic (and: false)
+            const oCombinedFilter = new sap.ui.model.Filter({
+                filters: [oLotFilter, oSerialFilter],
+                and: false
+            });
+
+            // 5. Apply the filter to the table
+            oBinding.filter([oCombinedFilter]);
         }
     });
 });
