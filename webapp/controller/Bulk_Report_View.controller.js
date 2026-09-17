@@ -105,39 +105,65 @@ sap.ui.define([
 
         //         this._iCurrentSkip += this._iPageSize;
 
-        //         // ADDED: Map through the data and inject _Selected property for the mandatory asterisk
-        //         // const aNewData = aContexts.map(oContext => {
-        //         //     const oRow = oContext.getObject();
-        //         //     oRow._Selected = false;
-        //         //     return oRow;
-        //         // });
-        //         // ADDED: Map through the data and inject _Selected property for the mandatory asterisk
-        //         const aNewData = aContexts.map(oContext => {
+        //         console.log("Raw Backend Data: ",aContexts.map( c => c.getObject()));
+
+        //         // =========================================================
+        //         // NEW LOGIC: Dictionary Mapping & Master Column Generation
+        //         // =========================================================
+        //         const aNewData = [];
+        //         const aMasterColumnList = []; 
+        //         const oColumnTracker = {};    
+
+        //         aContexts.forEach(oContext => {
         //             const oRow = oContext.getObject();
         //             oRow._Selected = false;
+                    
+        //             // Create a Dictionary to bind data by Characteristic ID
+        //             oRow._CharDict = {}; 
+        //             let bHasReportedValue = false;
 
-        //             // ADDED: Intercept default 0 from the backend and force it to blank
         //             if (oRow._CharResult && Array.isArray(oRow._CharResult)) {
         //                 oRow._CharResult.forEach(oChar => {
-        //                     if (oChar.ReportedValue === 0) {
-        //                         oChar.ReportedValue = "";
+        //                     const sCharId = oChar.InspectionCharacteristic;
+
+        //                     // 1. Build Master List of all unique columns across all lots
+        //                     if (!oColumnTracker[sCharId]) {
+        //                         oColumnTracker[sCharId] = true;
+        //                         aMasterColumnList.push({
+        //                             id: sCharId,
+        //                             name: oChar.InspectionSpecificationText
+        //                         });
         //                     }
+
+        //                     // 2. Format reported value
+        //                     if (oChar.ReportedValue === 0 || oChar.ReportedValue === null || oChar.ReportedValue === "") {
+        //                         oChar.ReportedValue = "";
+        //                     } else {
+        //                         bHasReportedValue = true; 
+        //                     }
+
+        //                     // 3. Map characteristic by ID into the dictionary
+        //                     oRow._CharDict[sCharId] = oChar; 
         //                 });
         //             }
 
-        //             return oRow;
+        //             // 4. Only push to table if nothing is reported yet
+        //             if (!bHasReportedValue) {
+        //                 aNewData.push(oRow);
+        //             }
         //         });
 
         //         const oLocalModel = this.getView().getModel("localModel");
         //         const aCurrentData = oLocalModel.getProperty("/results");
-
         //         const aCombinedData = aCurrentData.concat(aNewData);
+                
         //         oLocalModel.setProperty("/results", aCombinedData);
 
-        //         console.log("Fetched Data: ", aCombinedData);
+        //         console.log("Fetching data from backend: ",aCombinedData);
 
-        //         if (aCurrentData.length === 0 && aNewData.length > 0) {
-        //             this._generateDynamicColumns(aNewData[0]._CharResult);
+        //         // Generate Columns based on the Master List of unique characteristics
+        //         if (aMasterColumnList.length > 0 && this._iCurrentSkip === this._iPageSize) {
+        //             this._generateDynamicColumns(aMasterColumnList);
         //         }
 
         //         this._bIsFetching = false;
@@ -175,7 +201,7 @@ sap.ui.define([
                     this._bHasMoreData = false;
                     this._bIsFetching = false;
                     oTable.setBusy(false);
-                    MessageBox.information("No inspection lot data found for the selected filters.");
+                    sap.m.MessageBox.information("No inspection lot data found for the selected filters.");
                     return;
                 }
 
@@ -184,10 +210,10 @@ sap.ui.define([
                 }
 
                 this._iCurrentSkip += this._iPageSize;
+                
+                // === REQUESTED LOGGING: Raw Data from Backend ===
+                console.log("Raw Backend Data:", aContexts.map(c => c.getObject()));
 
-                // =========================================================
-                // NEW LOGIC: Dictionary Mapping & Master Column Generation
-                // =========================================================
                 const aNewData = [];
                 const aMasterColumnList = []; 
                 const oColumnTracker = {};    
@@ -195,49 +221,54 @@ sap.ui.define([
                 aContexts.forEach(oContext => {
                     const oRow = oContext.getObject();
                     oRow._Selected = false;
-                    
-                    // Create a Dictionary to bind data by Characteristic ID
                     oRow._CharDict = {}; 
-                    let bHasReportedValue = false;
+                    
+                    let iTotalChars = 0;
+                    let iReportedChars = 0;
 
                     if (oRow._CharResult && Array.isArray(oRow._CharResult)) {
+                        iTotalChars = oRow._CharResult.length; // Count total parameters
+
                         oRow._CharResult.forEach(oChar => {
                             const sCharId = oChar.InspectionCharacteristic;
 
-                            // 1. Build Master List of all unique columns across all lots
                             if (!oColumnTracker[sCharId]) {
                                 oColumnTracker[sCharId] = true;
                                 aMasterColumnList.push({
                                     id: sCharId,
-                                    name: oChar.InspectionSpecificationText
+                                    name: oChar.InspectionSpecificationText,
+                                    isQuantitative: oChar.InspSpecIsQuantitative,
+                                    targetValue: oChar.TargetValue
                                 });
                             }
 
-                            // 2. Format reported value
                             if (oChar.ReportedValue === 0 || oChar.ReportedValue === null || oChar.ReportedValue === "") {
                                 oChar.ReportedValue = "";
+                                oChar._IsAlreadyPosted = false; // Cell is editable
                             } else {
-                                bHasReportedValue = true; 
+                                oChar._IsAlreadyPosted = true;  // Cell is locked/disabled
+                                iReportedChars++; 
                             }
 
-                            // 3. Map characteristic by ID into the dictionary
                             oRow._CharDict[sCharId] = oChar; 
                         });
                     }
 
-                    // 4. Only push to table if nothing is reported yet
-                    if (!bHasReportedValue) {
+                    // Only display the row if there is at least ONE blank parameter left
+                    if (iReportedChars < iTotalChars) {
                         aNewData.push(oRow);
                     }
                 });
 
                 const oLocalModel = this.getView().getModel("localModel");
-                const aCurrentData = oLocalModel.getProperty("/results");
+                const aCurrentData = oLocalModel.getProperty("/results") || [];
                 const aCombinedData = aCurrentData.concat(aNewData);
                 
                 oLocalModel.setProperty("/results", aCombinedData);
+                
+                // === REQUESTED LOGGING: Processed Data bound to UI ===
+                console.log("Processed UI Data:", aCombinedData);
 
-                // Generate Columns based on the Master List of unique characteristics
                 if (aMasterColumnList.length > 0 && this._iCurrentSkip === this._iPageSize) {
                     this._generateDynamicColumns(aMasterColumnList);
                 }
@@ -248,10 +279,11 @@ sap.ui.define([
             }).catch((oError) => {
                 this._bIsFetching = false;
                 oTable.setBusy(false);
-                MessageBox.error("Failed to fetch data from the server.");
+                sap.m.MessageBox.error("Failed to fetch data from the server.");
+                console.error("Fetch Error:", oError);
             });
         },
-
+        
         _onTableScroll(oEvent) {
             const oTable = oEvent.getSource();
             const iFirstVisible = oEvent.getParameter("firstVisibleRow");
@@ -304,6 +336,52 @@ sap.ui.define([
             }
         },
 
+        // _generateDynamicColumns(aMasterColumnList) {
+        //     const oTable = this.byId("inspectionTable");
+        //     if (!aMasterColumnList) return;
+
+        //     aMasterColumnList.forEach((oMasterCol) => {
+        //         const sCharId = oMasterCol.id;
+        //         const sSpecText = oMasterCol.name;
+
+        //         // Sub-Column 1: Target Value
+        //         const oTargetCol = new Column({
+        //             width: "140px",
+        //             headerSpan: [2, 1],
+        //             multiLabels: [
+        //                 new Label({ text: sSpecText, textAlign: "Center", width: "100%", design: "Bold" }),
+        //                 new Label({ text: "Target Value", textAlign: "Center", width: "100%", design: "Bold" })
+        //             ],
+        //             template: new Text({
+        //                 // Show value if it exists for this lot, otherwise show a dash "-"
+        //                 text: "{= ${localModel>_CharDict/" + sCharId + "/TargetValue} || '-' }"
+        //             })
+        //         });
+        //         oTable.addColumn(oTargetCol);
+
+        //         // Sub-Column 2: Value Reported (Input Field)
+        //         const oReportedCol = new Column({
+        //             width: "140px",
+        //             multiLabels: [
+        //                 new Label({ text: sSpecText, textAlign: "Center", width: "100%", design: "Bold" }),
+        //                 new Label({ text: "Value Reported", textAlign: "Center", width: "100%", design: "Bold" })
+        //             ],
+        //             template: new Input({
+        //                 // Bind directly to the specific Characteristic ID
+        //                 value: "{localModel>_CharDict/" + sCharId + "/ReportedValue}",
+        //                 required: "{localModel>_Selected}",
+        //                 // Hide the input completely if this characteristic doesn't exist for this lot
+        //                 enabled: "{= ${localModel>_CharDict/" + sCharId + "} !== undefined }"
+        //             })
+        //         });
+        //         oTable.addColumn(oReportedCol);
+        //     });
+        // },
+        
+        // ==========================================
+        // Value Help (F4) Logic
+        // ==========================================
+        
         _generateDynamicColumns(aMasterColumnList) {
             const oTable = this.byId("inspectionTable");
             if (!aMasterColumnList) return;
@@ -313,42 +391,41 @@ sap.ui.define([
                 const sSpecText = oMasterCol.name;
 
                 // Sub-Column 1: Target Value
-                const oTargetCol = new Column({
+                const oTargetCol = new sap.ui.table.Column({
                     width: "140px",
                     headerSpan: [2, 1],
                     multiLabels: [
-                        new Label({ text: sSpecText, textAlign: "Center", width: "100%", design: "Bold" }),
-                        new Label({ text: "Target Value", textAlign: "Center", width: "100%", design: "Bold" })
+                        new sap.m.Label({ text: sSpecText, textAlign: "Center", width: "100%", design: "Bold" }),
+                        new sap.m.Label({ text: "Target Value", textAlign: "Center", width: "100%", design: "Bold" })
                     ],
-                    template: new Text({
+                    template: new sap.m.Text({
                         // Show value if it exists for this lot, otherwise show a dash "-"
                         text: "{= ${localModel>_CharDict/" + sCharId + "/TargetValue} || '-' }"
                     })
                 });
                 oTable.addColumn(oTargetCol);
 
-                // Sub-Column 2: Value Reported (Input Field)
-                const oReportedCol = new Column({
+                // ENABLED LOGIC for Partial Post: 
+                // Field is enabled ONLY IF the characteristic exists for this row AND it hasn't been posted yet.
+                const sEnabledExpression = "{= ${localModel>_CharDict/" + sCharId + "} !== undefined && ${localModel>_CharDict/" + sCharId + "/_IsAlreadyPosted} !== true }";
+
+                // Sub-Column 2: Value Reported (Standard Input Field ONLY)
+                const oReportedCol = new sap.ui.table.Column({
                     width: "140px",
                     multiLabels: [
-                        new Label({ text: sSpecText, textAlign: "Center", width: "100%", design: "Bold" }),
-                        new Label({ text: "Value Reported", textAlign: "Center", width: "100%", design: "Bold" })
+                        new sap.m.Label({ text: sSpecText, textAlign: "Center", width: "100%", design: "Bold" }),
+                        new sap.m.Label({ text: "Value Reported", textAlign: "Center", width: "100%", design: "Bold" })
                     ],
-                    template: new Input({
+                    template: new sap.m.Input({
                         // Bind directly to the specific Characteristic ID
                         value: "{localModel>_CharDict/" + sCharId + "/ReportedValue}",
                         required: "{localModel>_Selected}",
-                        // Hide the input completely if this characteristic doesn't exist for this lot
-                        enabled: "{= ${localModel>_CharDict/" + sCharId + "} !== undefined }"
+                        enabled: sEnabledExpression
                     })
                 });
                 oTable.addColumn(oReportedCol);
             });
         },
-        
-        // ==========================================
-        // Value Help (F4) Logic
-        // ==========================================
         
         onMaterialValueHelp(oEvent) {
             const oView = this.getView();
@@ -398,6 +475,7 @@ sap.ui.define([
         //         return;
         //     }
 
+        //     const oModel = this.getView().getModel();
         //     const oLocalModel = this.getView().getModel("localModel");
         //     const aPayload = [];
 
@@ -406,91 +484,134 @@ sap.ui.define([
 
         //     const rNumericRegex = /^-?\d+(\.\d+)?$/;
 
+        //     // 1. Process and Flatten the Payload
         //     for (let i = 0; i < aSelectedIndices.length; i++) {
         //         const iIndex = aSelectedIndices[i];
         //         const oContext = oTable.getContextByIndex(iIndex);
         //         const oRowData = oContext.getObject();
 
-        //         const aProcessedChars = [];
-
         //         for (let j = 0; j < oRowData._CharResult.length; j++) {
         //             const oChar = oRowData._CharResult[j];
+        //             let sReportedValue = oChar.ReportedValue ? oChar.ReportedValue.toString().trim() : "";
 
-        //             const sReportedValue = oChar.ReportedValue ? oChar.ReportedValue.trim() : "";
-
-        //             // ADDED: 1. Strict Empty Check (Mandatory Validation)
+        //             // Validation: Strict Empty Check
         //             if (sReportedValue === "") {
         //                 bValidationError = true;
-        //                 // sErrorMessage = `Mandatory Field Missing: Please enter a value for "${oChar.InspectionSpecificationText}" on Serial Number ${oRowData.SerialNumber}.`;
         //                 sErrorMessage = "Please enter a value for all fields in the selected row(s).";
-        //                 break; 
+        //                 break;
         //             }
 
-        //             // ADDED: 2. Numeric Validation 
+        //             // 2. Dynamic Validation (Handles any Text vs Numeric setup)
+        //             if (oChar.InspSpecIsQuantitative) {
+
+        //                 // --- NUMERIC CHARACTERISTIC ---
         //                 if (!rNumericRegex.test(sReportedValue)) {
         //                     bValidationError = true;
         //                     sErrorMessage = `Invalid input "${sReportedValue}" for characteristic "${oChar.InspectionSpecificationText}" on Serial Number ${oRowData.SerialNumber}. Only numeric values are allowed.`;
-        //                     break; 
+        //                     break;
         //                 }
 
+        //             } else {
 
-        //             aProcessedChars.push({
-        //                 InspectionLot: oChar.InspectionLot,
-        //                 SerialNumber: oChar.SerialNumber,
-        //                 InspectionCharacteristic: oChar.InspectionCharacteristic,
-        //                 InspectionSpecificationText: oChar.InspectionSpecificationText,
-        //                 TargetValue: oChar.TargetValue,
-        //                 ReportedValue: sReportedValue
+        //                 // --- QUALITATIVE (TEXT) CHARACTERISTIC ---
+        //                 // If it is not quantitative, it accepts text. 
+        //                 // We do not need the numeric regex. We can just convert it to uppercase
+        //                 // because standard SAP qualitative codes are generally uppercase.
+        //                 sReportedValue = sReportedValue.toUpperCase();
+
+        //             }
+
+        //             // Flattened Payload Creation with UPPERCASE keys matching the backend Complex Type
+        //             aPayload.push({
+        //                 // Header Data
+        //                 INSPECTION_LOT: oRowData.InspectionLot,
+        //                 SERIAL_NUMBER: oRowData.SerialNumber,
+        //                 MATERIAL: oRowData.Material,
+        //                 PLANT: oRowData.Plant,
+        //                 INSPECTION_LOT_QUANTITY: oRowData.InspectionLotQuantity.toString(),
+        //                 INSPECTION_LOT_QUANTITY_UNIT: oRowData.InspectionLotQuantityUnit,
+        //                 INSPECTION_LOT_CREATED_ON: oRowData.InspectionLotCreatedOn,
+
+        //                 // Child Data
+        //                 INSPECTION_CHARACTERISTIC: oChar.InspectionCharacteristic,
+        //                 INSPECTION_SPECIFICATION_TEXT: oChar.InspectionSpecificationText,
+        //                 TARGET_VALUE: oChar.TargetValue,
+        //                 REPORTED_VALUE: sReportedValue
         //             });
         //         }
 
-        //         if (bValidationError) {
-        //             break; 
-        //         }
-
-        //         aPayload.push({
-        //             InspectionLot: oRowData.InspectionLot,
-        //             SerialNumber: oRowData.SerialNumber,
-        //             Material: oRowData.Material,
-        //             Plant: oRowData.Plant,
-        //             InspectionLotQuantity: oRowData.InspectionLotQuantity,
-        //             InspectionLotQuantityUnit: oRowData.InspectionLotQuantityUnit,
-        //             InspectionLotCreatedOn: oRowData.InspectionLotCreatedOn,
-        //             _CharResult: aProcessedChars
-        //         });
+        //         if (bValidationError) break;
         //     }
 
+        //     // If there's an error, show it and STOP execution entirely.
         //     if (bValidationError) {
         //         sap.m.MessageBox.error(sErrorMessage);
         //         return;
         //     }
 
         //     const sJsonString = JSON.stringify(aPayload, null, 2);
-        //     console.log("Payload prepared for backend:", sJsonString);
+        //     // console.log("Payload prepared for backend:", sJsonString);
+        //     console.log("Payload prepared for backend:", aPayload);
 
-        //     if (!this._oPayloadDialog) {
-        //         this._oPayloadDialog = new sap.m.Dialog({
-        //             title: "Generated JSON Payload (Validated)",
-        //             contentWidth: "600px",
-        //             contentHeight: "400px",
-        //             content: new sap.m.TextArea({
-        //                 editable: false,
-        //                 width: "100%",
-        //                 rows: 20
-        //             }),
-        //             endButton: new sap.m.Button({
-        //                 text: "Close",
-        //                 press: () => {
-        //                     this._oPayloadDialog.close();
-        //                 }
-        //             })
-        //         });
-        //         this.getView().addDependent(this._oPayloadDialog);
-        //     } 
+        //     // if (!this._oPayloadDialog) {
+        //     //     this._oPayloadDialog = new sap.m.Dialog({
+        //     //         title: "Generated JSON Payload (Flattened & Validated)",
+        //     //         contentWidth: "600px",
+        //     //         contentHeight: "400px",
+        //     //         content: new sap.m.TextArea({
+        //     //             editable: false,
+        //     //             width: "100%",
+        //     //             rows: 20
+        //     //         }),
+        //     //         endButton: new sap.m.Button({
+        //     //             text: "Close",
+        //     //             press: () => {
+        //     //                 this._oPayloadDialog.close();
+        //     //             }
+        //     //         })
+        //     //     });
+        //     //     this.getView().addDependent(this._oPayloadDialog);
+        //     // }
 
-        //     this._oPayloadDialog.getContent()[0].setValue(sJsonString);
-        //     this._oPayloadDialog.open();
-        // }
+        //     // this._oPayloadDialog.getContent()[0].setValue(sJsonString);
+        //     // this._oPayloadDialog.open();
+
+        //     // ==========================================
+        //     // 2. Execute the OData V4 Bound Action
+        //     // ==========================================
+        //     oTable.setBusy(true);
+
+        //     // Bind to the specific action defined in the metadata bound to the collection
+        //     const oAction = oModel.bindContext("/InspectionLotSerialResult/com.sap.gateway.srvd.zui_insp_lot_bulk_result.v0001.saveReportedResults(...)");
+
+        //     // Pass the flattened array to the exact parameter name "RESULTS"
+        //     oAction.setParameter("RESULTS", aPayload);
+
+        //     // Execute the action
+        //     oAction.execute().then(() => {
+        //         sap.m.MessageToast.show("Results successfully posted to SAP!");
+        //         console.log("Results successfully posted to SAP!");
+
+        //         // Clear the table selections
+        //         oTable.clearSelection();
+
+        //         // Clear the selected row count text
+        //         const oSelectedCountText = this.byId("txtSelectedRowCount");
+        //         if (oSelectedCountText) {
+        //             oSelectedCountText.setText("Selected Rows: 0");
+        //         }
+
+        //         // 3. Re-fetch data. If the backend added the 'WHERE' filter to their CDS view,
+        //         // the rows you just posted will automatically vanish from the table!
+        //         this.onSearch();
+
+        //     }).catch((oError) => {
+        //         sap.m.MessageBox.error("Failed to post data. Please check the backend logs.");
+        //         console.error("Action Error:", oError);
+        //     }).finally(() => {
+        //         oTable.setBusy(false);
+        //     });
+        // },
 
         onPostData() {
             const oTable = this.byId("inspectionTable");
@@ -501,16 +622,25 @@ sap.ui.define([
                 return;
             }
 
+            // === REQUESTED CONFIRMATION DIALOG ===
+            sap.m.MessageBox.confirm("Are you sure you want to save the selected data?", {
+                title: "Confirm Save",
+                onClose: (sAction) => {
+                    if (sAction === sap.m.MessageBox.Action.OK) {
+                        this._executePostData(oTable, aSelectedIndices);
+                    }
+                }
+            });
+        },
+
+        _executePostData(oTable, aSelectedIndices) {
             const oModel = this.getView().getModel();
-            const oLocalModel = this.getView().getModel("localModel");
             const aPayload = [];
 
             let bValidationError = false;
             let sErrorMessage = "";
-
             const rNumericRegex = /^-?\d+(\.\d+)?$/;
 
-            // 1. Process and Flatten the Payload
             for (let i = 0; i < aSelectedIndices.length; i++) {
                 const iIndex = aSelectedIndices[i];
                 const oContext = oTable.getContextByIndex(iIndex);
@@ -520,36 +650,21 @@ sap.ui.define([
                     const oChar = oRowData._CharResult[j];
                     let sReportedValue = oChar.ReportedValue ? oChar.ReportedValue.toString().trim() : "";
 
-                    // Validation: Strict Empty Check
-                    if (sReportedValue === "") {
-                        bValidationError = true;
-                        sErrorMessage = "Please enter a value for all fields in the selected row(s).";
-                        break;
-                    }
-
-                    // 2. Dynamic Validation (Handles any Text vs Numeric setup)
-                    if (oChar.InspSpecIsQuantitative) {
-
-                        // --- NUMERIC CHARACTERISTIC ---
-                        if (!rNumericRegex.test(sReportedValue)) {
-                            bValidationError = true;
-                            sErrorMessage = `Invalid input "${sReportedValue}" for characteristic "${oChar.InspectionSpecificationText}" on Serial Number ${oRowData.SerialNumber}. Only numeric values are allowed.`;
-                            break;
+                    // VALIDATION LOGIC CHANGED: Only validate if they typed a new value
+                    if (sReportedValue !== "" && oChar._IsAlreadyPosted !== true) {
+                        
+                        if (oChar.InspSpecIsQuantitative) {
+                            if (!rNumericRegex.test(sReportedValue)) {
+                                bValidationError = true;
+                                sErrorMessage = `Invalid input "${sReportedValue}" for characteristic "${oChar.InspectionSpecificationText}" on Serial Number ${oRowData.SerialNumber}. Only numeric values are allowed.`;
+                                break;
+                            }
+                        } else {
+                            sReportedValue = sReportedValue.toUpperCase();
                         }
-
-                    } else {
-
-                        // --- QUALITATIVE (TEXT) CHARACTERISTIC ---
-                        // If it is not quantitative, it accepts text. 
-                        // We do not need the numeric regex. We can just convert it to uppercase
-                        // because standard SAP qualitative codes are generally uppercase.
-                        sReportedValue = sReportedValue.toUpperCase();
-
                     }
 
-                    // Flattened Payload Creation with UPPERCASE keys matching the backend Complex Type
                     aPayload.push({
-                        // Header Data
                         INSPECTION_LOT: oRowData.InspectionLot,
                         SERIAL_NUMBER: oRowData.SerialNumber,
                         MATERIAL: oRowData.Material,
@@ -557,8 +672,6 @@ sap.ui.define([
                         INSPECTION_LOT_QUANTITY: oRowData.InspectionLotQuantity.toString(),
                         INSPECTION_LOT_QUANTITY_UNIT: oRowData.InspectionLotQuantityUnit,
                         INSPECTION_LOT_CREATED_ON: oRowData.InspectionLotCreatedOn,
-
-                        // Child Data
                         INSPECTION_CHARACTERISTIC: oChar.InspectionCharacteristic,
                         INSPECTION_SPECIFICATION_TEXT: oChar.InspectionSpecificationText,
                         TARGET_VALUE: oChar.TargetValue,
@@ -569,70 +682,34 @@ sap.ui.define([
                 if (bValidationError) break;
             }
 
-            // If there's an error, show it and STOP execution entirely.
             if (bValidationError) {
                 sap.m.MessageBox.error(sErrorMessage);
                 return;
             }
 
-            const sJsonString = JSON.stringify(aPayload, null, 2);
-            // console.log("Payload prepared for backend:", sJsonString);
-            console.log("Payload prepared for backend:", aPayload);
+            // === REQUESTED LOGGING: Final Payload ===
+            console.log("Final Payload to Backend:", aPayload);
 
-            // if (!this._oPayloadDialog) {
-            //     this._oPayloadDialog = new sap.m.Dialog({
-            //         title: "Generated JSON Payload (Flattened & Validated)",
-            //         contentWidth: "600px",
-            //         contentHeight: "400px",
-            //         content: new sap.m.TextArea({
-            //             editable: false,
-            //             width: "100%",
-            //             rows: 20
-            //         }),
-            //         endButton: new sap.m.Button({
-            //             text: "Close",
-            //             press: () => {
-            //                 this._oPayloadDialog.close();
-            //             }
-            //         })
-            //     });
-            //     this.getView().addDependent(this._oPayloadDialog);
-            // }
-
-            // this._oPayloadDialog.getContent()[0].setValue(sJsonString);
-            // this._oPayloadDialog.open();
-
-            // ==========================================
-            // 2. Execute the OData V4 Bound Action
-            // ==========================================
             oTable.setBusy(true);
 
-            // Bind to the specific action defined in the metadata bound to the collection
             const oAction = oModel.bindContext("/InspectionLotSerialResult/com.sap.gateway.srvd.zui_insp_lot_bulk_result.v0001.saveReportedResults(...)");
-
-            // Pass the flattened array to the exact parameter name "RESULTS"
             oAction.setParameter("RESULTS", aPayload);
 
-            // Execute the action
             oAction.execute().then(() => {
-                sap.m.MessageToast.show("Results successfully posted to SAP!");
-                console.log("Results successfully posted to SAP!");
+                sap.m.MessageToast.show("Data successfully saved!");
+                console.log("Backend Post Success!");
 
-                // Clear the table selections
                 oTable.clearSelection();
-
-                // Clear the selected row count text
                 const oSelectedCountText = this.byId("txtSelectedRowCount");
                 if (oSelectedCountText) {
                     oSelectedCountText.setText("Selected Rows: 0");
                 }
 
-                // 3. Re-fetch data. If the backend added the 'WHERE' filter to their CDS view,
-                // the rows you just posted will automatically vanish from the table!
+                // Re-fetch data. Completely finished rows will vanish. Partially finished rows will update.
                 this.onSearch();
 
             }).catch((oError) => {
-                sap.m.MessageBox.error("Failed to post data. Please check the backend logs.");
+                sap.m.MessageBox.error("Failed to save data. Please check the backend logs.");
                 console.error("Action Error:", oError);
             }).finally(() => {
                 oTable.setBusy(false);
@@ -670,6 +747,8 @@ sap.ui.define([
 
             // 5. Apply the filter to the table
             oBinding.filter([oCombinedFilter]);
-        }
+        },
+
+        
     });
 });

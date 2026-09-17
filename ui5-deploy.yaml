@@ -21,7 +21,7 @@ builder:
           name: ZREPO_BULK_REPT
           description: Bulk Reporting of Inspection Results
           package: ZINSP_RSLT_UPLD
-          transport: NRTK907850
+          transport: NRTK908476
         exclude:
           - /test/
           - /localService/

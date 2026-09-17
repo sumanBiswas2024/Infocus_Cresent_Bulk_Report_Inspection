@@ -59,7 +59,7 @@
                             <fb:control>
                                 <Input
                                     id="inputMaterial"
-                                    showValueHelp="true"
+                                    showValueHelp="false"
                                     valueHelpRequest=".onMaterialValueHelp"
                                     placeholder="Select Material"
                                     showClearIcon="true"
@@ -127,7 +127,6 @@
                 </t:extension>
 
                 <t:columns>
-                    <!-- Static Columns exactly matching image_69b1f8.png -->
                     <!-- Note: Empty top labels align these 1-tier static headers with the 2-tier dynamic headers -->
 
                     <t:Column width="170px">
