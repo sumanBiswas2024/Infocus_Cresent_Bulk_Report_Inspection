@@ -633,6 +633,89 @@ sap.ui.define([
             });
         },
 
+        // _executePostData(oTable, aSelectedIndices) {
+        //     const oModel = this.getView().getModel();
+        //     const aPayload = [];
+
+        //     let bValidationError = false;
+        //     let sErrorMessage = "";
+        //     const rNumericRegex = /^-?\d+(\.\d+)?$/;
+
+        //     for (let i = 0; i < aSelectedIndices.length; i++) {
+        //         const iIndex = aSelectedIndices[i];
+        //         const oContext = oTable.getContextByIndex(iIndex);
+        //         const oRowData = oContext.getObject();
+
+        //         for (let j = 0; j < oRowData._CharResult.length; j++) {
+        //             const oChar = oRowData._CharResult[j];
+        //             let sReportedValue = oChar.ReportedValue ? oChar.ReportedValue.toString().trim() : "";
+
+        //             // VALIDATION LOGIC CHANGED: Only validate if they typed a new value
+        //             if (sReportedValue !== "" && oChar._IsAlreadyPosted !== true) {
+                        
+        //                 if (oChar.InspSpecIsQuantitative) {
+        //                     if (!rNumericRegex.test(sReportedValue)) {
+        //                         bValidationError = true;
+        //                         sErrorMessage = `Invalid input "${sReportedValue}" for characteristic "${oChar.InspectionSpecificationText}" on Serial Number ${oRowData.SerialNumber}. Only numeric values are allowed.`;
+        //                         break;
+        //                     }
+        //                 } else {
+        //                     sReportedValue = sReportedValue.toUpperCase();
+        //                 }
+        //             }
+
+        //             aPayload.push({
+        //                 INSPECTION_LOT: oRowData.InspectionLot,
+        //                 SERIAL_NUMBER: oRowData.SerialNumber,
+        //                 MATERIAL: oRowData.Material,
+        //                 PLANT: oRowData.Plant,
+        //                 INSPECTION_LOT_QUANTITY: oRowData.InspectionLotQuantity.toString(),
+        //                 INSPECTION_LOT_QUANTITY_UNIT: oRowData.InspectionLotQuantityUnit,
+        //                 INSPECTION_LOT_CREATED_ON: oRowData.InspectionLotCreatedOn,
+        //                 INSPECTION_CHARACTERISTIC: oChar.InspectionCharacteristic,
+        //                 INSPECTION_SPECIFICATION_TEXT: oChar.InspectionSpecificationText,
+        //                 TARGET_VALUE: oChar.TargetValue,
+        //                 REPORTED_VALUE: sReportedValue
+        //             });
+        //         }
+
+        //         if (bValidationError) break;
+        //     }
+
+        //     if (bValidationError) {
+        //         sap.m.MessageBox.error(sErrorMessage);
+        //         return;
+        //     }
+
+        //     // === REQUESTED LOGGING: Final Payload ===
+        //     console.log("Final Payload to Backend:", aPayload);
+
+        //     oTable.setBusy(true);
+
+        //     const oAction = oModel.bindContext("/InspectionLotSerialResult/com.sap.gateway.srvd.zui_insp_lot_bulk_result.v0001.saveReportedResults(...)");
+        //     oAction.setParameter("RESULTS", aPayload);
+
+        //     oAction.execute().then(() => {
+        //         sap.m.MessageToast.show("Data successfully saved!");
+        //         console.log("Backend Post Success!");
+
+        //         oTable.clearSelection();
+        //         const oSelectedCountText = this.byId("txtSelectedRowCount");
+        //         if (oSelectedCountText) {
+        //             oSelectedCountText.setText("Selected Rows: 0");
+        //         }
+
+        //         // Re-fetch data. Completely finished rows will vanish. Partially finished rows will update.
+        //         this.onSearch();
+
+        //     }).catch((oError) => {
+        //         sap.m.MessageBox.error("Failed to save data. Please check the backend logs.");
+        //         console.error("Action Error:", oError);
+        //     }).finally(() => {
+        //         oTable.setBusy(false);
+        //     });
+        // },
+
         _executePostData(oTable, aSelectedIndices) {
             const oModel = this.getView().getModel();
             const aPayload = [];
@@ -650,20 +733,25 @@ sap.ui.define([
                     const oChar = oRowData._CharResult[j];
                     let sReportedValue = oChar.ReportedValue ? oChar.ReportedValue.toString().trim() : "";
 
-                    // VALIDATION LOGIC CHANGED: Only validate if they typed a new value
-                    if (sReportedValue !== "" && oChar._IsAlreadyPosted !== true) {
-                        
-                        if (oChar.InspSpecIsQuantitative) {
-                            if (!rNumericRegex.test(sReportedValue)) {
-                                bValidationError = true;
-                                sErrorMessage = `Invalid input "${sReportedValue}" for characteristic "${oChar.InspectionSpecificationText}" on Serial Number ${oRowData.SerialNumber}. Only numeric values are allowed.`;
-                                break;
-                            }
-                        } else {
-                            sReportedValue = sReportedValue.toUpperCase();
-                        }
+                    // ==========================================
+                    // THE FIX: Skip if already posted or left blank
+                    // ==========================================
+                    if (oChar._IsAlreadyPosted === true || sReportedValue === "") {
+                        continue; // This skips the rest of the loop and moves to the next parameter
                     }
 
+                    // 1. Validate the NEW entry
+                    if (oChar.InspSpecIsQuantitative) {
+                        if (!rNumericRegex.test(sReportedValue)) {
+                            bValidationError = true;
+                            sErrorMessage = `Invalid input "${sReportedValue}" for characteristic "${oChar.InspectionSpecificationText}" on Serial Number ${oRowData.SerialNumber}. Only numeric values are allowed.`;
+                            break;
+                        }
+                    } else {
+                        sReportedValue = sReportedValue.toUpperCase();
+                    }
+
+                    // 2. Add ONLY the NEW entries to the Payload
                     aPayload.push({
                         INSPECTION_LOT: oRowData.InspectionLot,
                         SERIAL_NUMBER: oRowData.SerialNumber,
@@ -684,6 +772,12 @@ sap.ui.define([
 
             if (bValidationError) {
                 sap.m.MessageBox.error(sErrorMessage);
+                return;
+            }
+
+            // NEW: Prevent empty backend calls if they selected a row but typed nothing
+            if (aPayload.length === 0) {
+                sap.m.MessageBox.warning("No new values were entered for the selected rows.");
                 return;
             }
 
