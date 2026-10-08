@@ -221,7 +221,12 @@ sap.ui.define([
                 aContexts.forEach(oContext => {
                     const oRow = oContext.getObject();
                     oRow._Selected = false;
-                    oRow._CharDict = {}; 
+                    oRow._CharDict = {};
+                    
+                    // =========================================================
+                    // NEW: Flag the Remarks field if it came from backend filled
+                    // =========================================================
+                    oRow._IsRemarksPosted = (oRow.Remakrs && oRow.Remakrs.trim() !== "") ? true : false;
                     
                     let iTotalChars = 0;
                     let iReportedChars = 0;
@@ -425,6 +430,32 @@ sap.ui.define([
                 });
                 oTable.addColumn(oReportedCol);
             });
+
+            // =========================================================
+            // Remarks Column (Now with Dynamic Enabled Logic & Validation)
+            // =========================================================
+            const oRemarksCol = new sap.ui.table.Column({
+                width: "180px",
+                multiLabels: [
+                    new sap.m.Label({ text: "", textAlign: "Center", width: "100%" }), 
+                    new sap.m.Label({ text: "Remarks", textAlign: "Center", width: "100%", design: "Bold" })
+                ],
+                template: new sap.m.Input({
+                    value: "{localModel>Remakrs}",
+                    enabled: "{= ${localModel>_IsRemarksPosted} !== true }",
+                    // NEW: Real-time validation for 50 characters
+                    liveChange: (oEvent) => {
+                        const oInput = oEvent.getSource();
+                        if (oInput.getValue().length > 50) {
+                            oInput.setValueState("Error");
+                            oInput.setValueStateText("Remarks cannot exceed 50 characters.");
+                        } else {
+                            oInput.setValueState("None");
+                        }
+                    }
+                })
+            });
+            oTable.addColumn(oRemarksCol);
         },
         
         onMaterialValueHelp(oEvent) {
@@ -729,6 +760,16 @@ sap.ui.define([
                 const oContext = oTable.getContextByIndex(iIndex);
                 const oRowData = oContext.getObject();
 
+                // ==========================================
+                // NEW: Remarks 50 Character Limit Validation
+                // ==========================================
+                const sRowRemarks = oRowData.Remakrs ? oRowData.Remakrs.toString().trim() : "";
+                if (sRowRemarks.length > 50) {
+                    bValidationError = true;
+                    sErrorMessage = `Remarks cannot exceed 50 characters for Serial Number ${oRowData.SerialNumber}.`;
+                    break;
+                }
+
                 for (let j = 0; j < oRowData._CharResult.length; j++) {
                     const oChar = oRowData._CharResult[j];
                     let sReportedValue = oChar.ReportedValue ? oChar.ReportedValue.toString().trim() : "";
@@ -764,6 +805,7 @@ sap.ui.define([
                         INSPECTION_SPECIFICATION_TEXT: oChar.InspectionSpecificationText,
                         TARGET_VALUE: oChar.TargetValue,
                         REPORTED_VALUE: sReportedValue
+                        // REMARKS: sRowRemarks // New Remarks Field
                     });
                 }
 
