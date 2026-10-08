@@ -432,18 +432,75 @@ sap.ui.define([
             });
 
             // =========================================================
-            // Remarks Column (Now with Dynamic Enabled Logic & Validation)
+            // Remarks Column (With Auto-Closing Popover UX & Placeholder)
             // =========================================================
             const oRemarksCol = new sap.ui.table.Column({
-                width: "180px",
+                width: "220px", 
                 multiLabels: [
                     new sap.m.Label({ text: "", textAlign: "Center", width: "100%" }), 
-                    new sap.m.Label({ text: "Remarks", textAlign: "Center", width: "100%", design: "Bold" })
+                    
+                    new sap.m.HBox({
+                        alignItems: "Center",
+                        justifyContent: "Center",
+                        width: "100%",
+                        items: [
+                            new sap.m.Label({ 
+                                text: "Remarks", 
+                                design: "Bold" 
+                            }),
+                            
+                            new sap.m.Text({ 
+                                text: "", 
+                                width: "4px" 
+                            }),
+                            
+                            new sap.ui.core.Icon({
+                                src: "sap-icon://information",
+                                color: "Marker",
+                                tooltip: "Maximum 50 characters allowed",
+                                
+                                press: (oEvent) => {
+                                    const oIcon = oEvent.getSource();
+                                    
+                                    if (!this._oRemarksPopover) {
+                                        const oPopoverText = new sap.m.Text({ 
+                                            text: "Maximum 50 characters allowed for Remarks." 
+                                        });
+                                        oPopoverText.addStyleClass("sapUiSmallMargin");
+                                        
+                                        this._oRemarksPopover = new sap.m.Popover({
+                                            showHeader: false, 
+                                            placement: "Auto", 
+                                            content: oPopoverText
+                                        });
+                                        
+                                        this.getView().addDependent(this._oRemarksPopover);
+                                    }
+                                    
+                                    // Open the popover
+                                    this._oRemarksPopover.openBy(oIcon);
+
+                                    // NEW: Auto-close timer logic
+                                    // 1. Clear any existing timer so they don't overlap if clicked multiple times
+                                    if (this._iPopoverTimeout) {
+                                        clearTimeout(this._iPopoverTimeout);
+                                    }
+                                    
+                                    // 2. Set a new 5-second (5000ms) timer to close it
+                                    this._iPopoverTimeout = setTimeout(() => {
+                                        if (this._oRemarksPopover && this._oRemarksPopover.isOpen()) {
+                                            this._oRemarksPopover.close();
+                                        }
+                                    }, 2000);
+                                }
+                            })
+                        ]
+                    })
                 ],
                 template: new sap.m.Input({
                     value: "{localModel>Remakrs}",
                     enabled: "{= ${localModel>_IsRemarksPosted} !== true }",
-                    // NEW: Real-time validation for 50 characters
+                    // placeholder: "Enter remarks (Max 50)",
                     liveChange: (oEvent) => {
                         const oInput = oEvent.getSource();
                         if (oInput.getValue().length > 50) {
@@ -804,8 +861,8 @@ sap.ui.define([
                         INSPECTION_CHARACTERISTIC: oChar.InspectionCharacteristic,
                         INSPECTION_SPECIFICATION_TEXT: oChar.InspectionSpecificationText,
                         TARGET_VALUE: oChar.TargetValue,
-                        REPORTED_VALUE: sReportedValue
-                        // REMARKS: sRowRemarks // New Remarks Field
+                        REPORTED_VALUE: sReportedValue,
+                        REMARKS: sRowRemarks // New Remarks Field
                     });
                 }
 
